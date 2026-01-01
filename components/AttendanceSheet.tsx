@@ -129,13 +129,24 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({ onNavigate }) => {
     const text = encodeURIComponent(overrideText || messageText);
     
     if (!phone) return;
-    phone = phone.replace(/[^0-9]/g, '').replace(/^0+/, '');
-    let url = method === 'WHATSAPP' ? `https://wa.me/${phone}?text=${text}` : `sms:${phone}?body=${text}`;
     
-    // Support for Electron (Windows App)
+    // تنظيف الرقم فقط من الرموز (بدون إضافة كود الدولة وبدون حذف الأصفار بناء على طلب المستخدم)
+    phone = phone.replace(/[^0-9]/g, '');
+
+    let url = '';
+    if (method === 'WHATSAPP') {
+        url = `https://wa.me/${phone}?text=${text}`;
+    } else {
+        url = `sms:${phone}?body=${text}`;
+    }
+    
+    // استخدام الجسر للويندوز
     const electron = (window as any).electron;
-    if (electron && electron.openExternal) electron.openExternal(url);
-    else window.open(url, '_blank');
+    if (electron && electron.openExternal) {
+        electron.openExternal(url);
+    } else {
+        window.open(url, '_blank');
+    }
     
     if (!isBatchActive) setMessageModal({ isOpen: false, student: null, type: null });
   };
