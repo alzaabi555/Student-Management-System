@@ -78,25 +78,61 @@ jobs:
           name: android-app
           path: android/app/build/outputs/apk/debug/*.apk
 
-  prepare-ios:
+   build-ios:
     runs-on: macos-latest
-    needs: build-web
     steps:
       - uses: actions/checkout@v4
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
+          
       - name: Install Dependencies
         run: npm install
+
       - name: Build Web Assets
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
         run: npm run build
-      - name: Add iOS Platform
-        run: npx cap add ios
-      - name: Sync iOS
+
+      - name: Setup Capacitor iOS
+        run: |
+          npx cap add ios || true
+
+      - name: Ensure Assets Exist
+        run: |
+          mkdir -p assets
+          # If user forgot to put icon in assets, take from public
+          if [ ! -f assets/icon.png ] && [ -f public/icon.png ]; then
+            echo "Copying icon from public to assets..."
+            cp public/icon.png assets/icon.png
+          fi
+          # If user has no splash, use icon as splash
+          if [ ! -f assets/splash.png ] && [ -f assets/icon.png ]; then
+            echo "Creating splash from icon..."
+            cp assets/icon.png assets/splash.png
+          fi
+
+      - name: Generate Icons
+        run: npx capacitor-assets generate --ios
+
+      - name: Sync Capacitor
         run: npx cap sync ios
-      - name: Upload iOS Project Source
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-xcode-project
-          path: ios/
+
+      - name: Build Unsigned IPA (For AltStore)
+        run: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -destination generic/platform=iOS \
+            -derivedDataPath dd \
+            clean build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+            
+          mkdir Payload
+          cp -r dd/Build/Products/Release-iphoneos/App.app Payload/
+          zip -r Muhawil-Pro.ipa Payload
