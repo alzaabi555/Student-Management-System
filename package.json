@@ -1,7 +1,7 @@
 {
   "name": "madrasati-app",
   "private": true,
-  "version": "1.0.3",
+  "version": "2.0.0",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -39,8 +39,8 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.madrasati.app",
-    "productName": "Madrasati",
+    "appId": "com.madrasati.app.v2",
+    "productName": "Madrasati V2",
     "directories": {
       "output": "dist-electron"
     },
