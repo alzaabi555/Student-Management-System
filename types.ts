@@ -1,3 +1,4 @@
+
 export enum AttendanceStatus {
   PRESENT = 'hader',
   ABSENT = 'ghaeb',
@@ -39,4 +40,12 @@ export interface DashboardStats {
   truantCount: number;
   escapeCount: number;
   attendanceRate: number;
+}
+
+declare global {
+  interface Window {
+    electron?: {
+      openExternal: (url: string) => Promise<void>;
+    };
+  }
 }
