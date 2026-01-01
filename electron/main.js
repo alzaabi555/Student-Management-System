@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -10,9 +10,10 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false, // For simple ipc communication in this demo
-      webSecurity: false // Allow loading local resources if needed
+      nodeIntegration: true, // يفضل جعله false في التطبيقات الكبيرة للأمان، لكنه مطلوب هنا بناء على الإعداد الحالي
+      contextIsolation: false, // يجب أن يكون false ليعمل window.electron المعرف في preload ببساطة بدون contextBridge
+      webSecurity: false,
+      preload: path.join(__dirname, 'preload.js') // ربط ملف الجسر
     },
     icon: path.join(__dirname, '../public/icon.ico')
   });
@@ -27,18 +28,17 @@ function createWindow() {
     win.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
-  // Open external links in default browser (important for WhatsApp)
+  // Open external links in default browser (fallback)
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
   });
-
-  // Handle WhatsApp specific links from renderer
-  const { ipcMain } = require('electron');
-  ipcMain.on('open-external', (event, url) => {
-    shell.openExternal(url);
-  });
 }
+
+// استقبال طلب فتح الرابط من الـ Preload
+ipcMain.on('open-external', (event, url) => {
+  shell.openExternal(url);
+});
 
 app.whenReady().then(createWindow);
 
