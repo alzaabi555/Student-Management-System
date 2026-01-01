@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
     "electron:build": "npm run build && electron-builder --win --x64",
-    "android:build": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug"
+    "android:build": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
+    "ios:open": "npm run build && npx cap sync ios && npx cap open ios",
+    "ios:ipa": "npm run build && npx cap sync ios && cd ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGN_IDENTITY=\"\" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO clean build && rm -rf Payload Madrasati.ipa && mkdir Payload && mv build/Build/Products/Release-iphoneos/App.app Payload/ && zip -r Madrasati.ipa Payload && rm -rf Payload build"
   },
   "dependencies": {
     "@capacitor/android": "^5.0.0",
