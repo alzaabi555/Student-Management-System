@@ -14,7 +14,7 @@ const AboutApp: React.FC = () => {
           <Info size={48} />
         </div>
         <h2 className="text-3xl font-bold text-gray-800 mb-2 relative z-10">حول التطبيق</h2>
-        <p className="text-primary font-medium relative z-10 bg-primary/5 inline-block px-4 py-1 rounded-full text-sm">الإصدار v1.0.2 Beta</p>
+        <p className="text-primary font-medium relative z-10 bg-primary/5 inline-block px-4 py-1 rounded-full text-sm">الإصدار v2.0.0</p>
       </div>
 
       {/* Description Section */}
