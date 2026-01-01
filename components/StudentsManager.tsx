@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Search, Plus, Trash2, User, Phone, Save, X, Layers, ArrowRight, Upload, FileSpreadsheet, Download, Filter } from 'lucide-react';
 import { students, grades, classes, addStudent, deleteStudent, addStudentsBulk } from '../services/dataService';
-import { read, utils } from 'xlsx';
+import { read, utils, write } from 'xlsx';
 import { TableVirtuoso } from 'react-virtuoso';
 
 interface StudentsManagerProps {
@@ -162,7 +162,7 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
     const ws = utils.aoa_to_sheet([["اسم الطالب", "رقم الجوال"], ["سالم علي", "99000000"]]);
     const wb = utils.book_new();
     utils.book_append_sheet(wb, ws, "Students");
-    const wbout = utils.write(wb, { bookType: 'xlsx', type: 'array' });
+    const wbout = write(wb, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([wbout], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
