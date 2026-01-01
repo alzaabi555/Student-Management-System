@@ -1,9 +1,5 @@
+const { contextBridge, shell } = require('electron');
 
-const { ipcRenderer } = require('electron');
-
-// تعريض وظائف محددة وآمنة لواجهة الويب
-window.electron = {
-  openExternal: (url) => {
-    ipcRenderer.send('open-external', url);
-  }
-};
+contextBridge.exposeInMainWorld('electron', {
+  openExternal: (url) => shell.openExternal(url)
+});

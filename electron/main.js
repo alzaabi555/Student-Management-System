@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import { app, BrowserWindow, shell } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -10,12 +10,13 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      nodeIntegration: true, // يفضل جعله false في التطبيقات الكبيرة للأمان، لكنه مطلوب هنا بناء على الإعداد الحالي
-      contextIsolation: false, // يجب أن يكون false ليعمل window.electron المعرف في preload ببساطة بدون contextBridge
-      webSecurity: false,
+      nodeIntegration: false, // Security best practice
+      contextIsolation: true, // Required for contextBridge
+      webSecurity: true,
       preload: path.join(__dirname, 'preload.js') // ربط ملف الجسر
     },
-    icon: path.join(__dirname, '../public/icon.ico')
+    // استخدام أيقونة png للنافذة، المسار يشير الآن إلى public/assets
+    icon: path.join(__dirname, '../public/assets/icon.png')
   });
 
   // Remove menu bar for cleaner app look
@@ -34,11 +35,6 @@ function createWindow() {
     return { action: 'deny' };
   });
 }
-
-// استقبال طلب فتح الرابط من الـ Preload
-ipcMain.on('open-external', (event, url) => {
-  shell.openExternal(url);
-});
 
 app.whenReady().then(createWindow);
 
