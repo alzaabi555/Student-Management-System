@@ -94,8 +94,6 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({ onNavigate }) => {
 
   const handleManualSave = () => {
     setIsSaving(true);
-    // Data is already saved in handleStatusChange via dataService, 
-    // but this visual feedback is good for user confidence
     setTimeout(() => {
       setIsSaving(false);
       setShowSaveToast(true);
@@ -130,22 +128,24 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({ onNavigate }) => {
     
     if (!phone) return;
     
-    // تنظيف الرقم فقط من الرموز (بدون إضافة كود الدولة وبدون حذف الأصفار بناء على طلب المستخدم)
-    phone = phone.replace(/[^0-9]/g, '');
+    // تنظيف الرقم من الرموز فقط (بدون إضافة كود الدولة حسب الطلب)
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
 
-    let url = '';
     if (method === 'WHATSAPP') {
-        url = `https://wa.me/${phone}?text=${text}`;
+        // ============================================================
+        // 🔥 منطق الجسر المزدوج (Dual Bridge Logic) 🔥
+        // ============================================================
+        if (window.electron) {
+            // الحالة أ: ويندوز (استخدام البروتوكول المباشر لفتح التطبيق)
+            window.electron.openExternal(`whatsapp://send?phone=${cleanPhone}&text=${text}`);
+        } else {
+            // الحالة ب: ويب/موبايل
+            const url = `https://wa.me/${cleanPhone}?text=${text}`;
+            window.open(url, '_blank');
+        }
     } else {
-        url = `sms:${phone}?body=${text}`;
-    }
-    
-    // استخدام الجسر للويندوز
-    const electron = (window as any).electron;
-    if (electron && electron.openExternal) {
-        electron.openExternal(url);
-    } else {
-        window.open(url, '_blank');
+        // SMS
+        window.location.href = `sms:${cleanPhone}?body=${text}`;
     }
     
     if (!isBatchActive) setMessageModal({ isOpen: false, student: null, type: null });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, Settings, School, UserPlus, Layers, BookOpen, Info, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, School, UserPlus, Layers, BookOpen, Info, ChevronRight, Download } from 'lucide-react';
 
 interface SidebarProps {
   currentPage: string;
@@ -7,9 +7,11 @@ interface SidebarProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   schoolInfo?: { name: string; district: string } | null;
+  installPrompt?: any;
+  onInstall?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentPage, setPage, isOpen, setIsOpen, schoolInfo }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentPage, setPage, isOpen, setIsOpen, schoolInfo, installPrompt, onInstall }) => {
   const menuItems = [
     { id: 'dashboard', label: 'لوحة المعلومات', icon: <LayoutDashboard size={22} /> },
     { id: 'structure', label: 'الصفوف والفصول', icon: <Layers size={22} /> },
@@ -31,13 +33,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setPage, isOpen, setIsOp
 
       {/* Sidebar Container */}
       <aside className={`
-        fixed inset-y-0 right-0 w-72 bg-white/90 md:bg-white z-50 transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)
+        fixed inset-y-0 right-0 w-72 bg-white/95 backdrop-blur-md md:bg-white z-50 transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)
         ${isOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'}
         md:translate-x-0 md:static md:shadow-none md:bg-transparent
         flex flex-col border-l border-white/50
       `}>
-        {/* Logo Area */}
-        <div className="p-6 md:p-8 flex items-center gap-4 shrink-0">
+        {/* Logo Area - Fixed padding for safe area */}
+        <div className="px-6 pb-6 pt-[calc(1.5rem+env(safe-area-inset-top))] md:p-8 flex items-center gap-4 shrink-0">
           <div className="w-14 h-14 bg-gradient-to-br from-primary to-primaryLight rounded-2xl flex items-center justify-center text-white shadow-glow transform rotate-3 hover:rotate-6 transition-transform duration-300">
             <School size={28} />
           </div>
@@ -86,6 +88,26 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setPage, isOpen, setIsOp
             );
           })}
         </nav>
+
+        {/* Install App Button (Visible only when installable) */}
+        {installPrompt && (
+          <div className="p-4 mt-auto border-t border-gray-100">
+            <button
+              onClick={onInstall}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white p-4 rounded-2xl shadow-lg transition-all duration-300 flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-3">
+                 <div className="bg-white/10 p-2 rounded-lg group-hover:bg-white/20 transition-colors">
+                    <Download size={20} className="animate-bounce" />
+                 </div>
+                 <div className="flex flex-col items-start">
+                    <span className="font-bold text-sm">تثبيت التطبيق</span>
+                    <span className="text-[10px] text-gray-400">لتجربة أفضل وسرعة أعلى</span>
+                 </div>
+              </div>
+            </button>
+          </div>
+        )}
       </aside>
     </>
   );
