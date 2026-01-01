@@ -1,7 +1,7 @@
 {
   "name": "madrasati-app",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -16,7 +16,7 @@
     "@capacitor/android": "^5.0.0",
     "@capacitor/core": "^5.0.0",
     "@capacitor/ios": "^5.0.0",
-    "@google/genai": "^0.1.0",
+    "@google/genai": "^0.0.2",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
