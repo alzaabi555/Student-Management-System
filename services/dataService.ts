@@ -1,283 +1,358 @@
 
 import { Student, Grade, SchoolClass, AttendanceStatus, AttendanceRecord } from '../types';
+import { dbService, STORES } from './db';
 
-// --- Local Storage Keys ---
-const KEYS = {
-  GRADES: 'madrasati_grades',
-  CLASSES: 'madrasati_classes',
-  STUDENTS: 'madrasati_students',
-  ATTENDANCE: 'madrasati_attendance',
-  SETTINGS: 'school_settings',
-  ASSETS: 'school_assets' // New Key for Images
+// --- In-Memory Cache ---
+// We keep data in memory for instant React updates, while syncing to DB asynchronously.
+export let grades: Grade[] = [];
+export let classes: SchoolClass[] = [];
+export let students: Student[] = [];
+// Map for O(1) attendance lookups: key = "YYYY-MM-DD-studentId"
+let attendanceStore: Record<string, AttendanceRecord> = {};
+
+// --- Initialization & Migration Logic ---
+
+const migrateFromLocalStorage = async () => {
+    const LS_KEYS = {
+        GRADES: 'madrasati_grades',
+        CLASSES: 'madrasati_classes',
+        STUDENTS: 'madrasati_students',
+        ATTENDANCE: 'madrasati_attendance',
+        SETTINGS: 'school_settings',
+        ASSETS: 'school_assets'
+    };
+
+    const hasLegacyData = localStorage.getItem(LS_KEYS.STUDENTS);
+    
+    if (hasLegacyData) {
+        console.log("Migrating data from LocalStorage to IndexedDB...");
+        try {
+            // 1. Grades
+            const lsGrades = JSON.parse(localStorage.getItem(LS_KEYS.GRADES) || '[]');
+            if (lsGrades.length) await dbService.putBulk(STORES.GRADES, lsGrades);
+
+            // 2. Classes
+            const lsClasses = JSON.parse(localStorage.getItem(LS_KEYS.CLASSES) || '[]');
+            if (lsClasses.length) await dbService.putBulk(STORES.CLASSES, lsClasses);
+
+            // 3. Students
+            const lsStudents = JSON.parse(localStorage.getItem(LS_KEYS.STUDENTS) || '[]');
+            if (lsStudents.length) await dbService.putBulk(STORES.STUDENTS, lsStudents);
+
+            // 4. Attendance
+            const lsAttendance = JSON.parse(localStorage.getItem(LS_KEYS.ATTENDANCE) || '{}');
+            const attendanceKeys = Object.keys(lsAttendance);
+            if (attendanceKeys.length > 0) {
+                 for (const key of attendanceKeys) {
+                     await dbService.put(STORES.ATTENDANCE, lsAttendance[key], key);
+                 }
+            }
+
+            // 5. Settings
+            const lsSettings = JSON.parse(localStorage.getItem(LS_KEYS.SETTINGS) || 'null');
+            if (lsSettings) {
+                await dbService.put(STORES.SETTINGS, { ...lsSettings, id: 'main' });
+            }
+
+            // 6. Assets
+            const lsAssets = JSON.parse(localStorage.getItem(LS_KEYS.ASSETS) || 'null');
+            if (lsAssets) {
+                await dbService.put(STORES.ASSETS, { ...lsAssets, id: 'main' });
+            }
+
+            // Clear LocalStorage after successful migration
+            localStorage.clear();
+            console.log("Migration complete. LocalStorage cleared.");
+
+        } catch (error) {
+            console.error("Migration failed:", error);
+            alert("حدث خطأ أثناء تحديث قاعدة البيانات. قد تبقى بعض البيانات في النسخة القديمة.");
+        }
+    }
 };
 
-// --- Helper to load data ---
-const loadData = <T>(key: string, defaultValue: T): T => {
-  try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : defaultValue;
-  } catch (e) {
-    console.error(`Error loading ${key}`, e);
-    return defaultValue;
-  }
+export const initializeData = async () => {
+    try {
+        await migrateFromLocalStorage();
+
+        // Load data from DB to Memory
+        grades = await dbService.getAll<Grade>(STORES.GRADES);
+        classes = await dbService.getAll<SchoolClass>(STORES.CLASSES);
+        students = await dbService.getAll<Student>(STORES.STUDENTS);
+        
+        // For attendance, we fetch all values and reconstruct the map
+        const attRecords = await dbService.getAll<AttendanceRecord>(STORES.ATTENDANCE);
+        attendanceStore = {};
+        attRecords.forEach(r => {
+            const key = `${r.date}-${r.studentId}`;
+            attendanceStore[key] = r;
+        });
+
+    } catch (e) {
+        console.error("Failed to initialize data service:", e);
+    }
 };
 
-// --- Helper to save data ---
-const saveData = (key: string, data: any) => {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (e) {
-    console.error(`Error saving ${key} (Quota might be exceeded)`, e);
-    alert('تنبيه: مساحة التخزين ممتلئة، قد لا يتم حفظ بعض البيانات.');
-  }
+// --- Backup & Restore Logic ---
+
+export const exportDatabase = async (): Promise<string> => {
+    const backupData = {
+        grades: await dbService.getAll(STORES.GRADES),
+        classes: await dbService.getAll(STORES.CLASSES),
+        students: await dbService.getAll(STORES.STUDENTS),
+        attendance: await dbService.getAll(STORES.ATTENDANCE),
+        settings: await dbService.getAll(STORES.SETTINGS),
+        assets: await dbService.getAll(STORES.ASSETS),
+        metadata: {
+            exportDate: new Date().toISOString(),
+            version: '2.0.0',
+            appName: 'Madrasati'
+        }
+    };
+    return JSON.stringify(backupData, null, 2);
 };
 
-// --- Initial Data Setup (Load from Storage) ---
-export let grades: Grade[] = loadData(KEYS.GRADES, []);
-export let classes: SchoolClass[] = loadData(KEYS.CLASSES, []);
-export let students: Student[] = loadData(KEYS.STUDENTS, []);
-// Attendance is stored as a map for O(1) access performance with large datasets
-let attendanceStore: Record<string, AttendanceRecord> = loadData(KEYS.ATTENDANCE, {});
+export const importDatabase = async (jsonString: string): Promise<boolean> => {
+    try {
+        const data = JSON.parse(jsonString);
+        
+        // Basic validation
+        if (!data.grades || !data.classes || !data.students || !data.metadata) {
+            throw new Error("ملف النسخة الاحتياطية غير صالح أو تالف");
+        }
 
-// --- School Settings Management ---
-export const saveSchoolSettings = (name: string, district: string) => {
-  const settings = { name, district, isSetup: true };
-  localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
-  return settings;
+        // Clear existing data to prevent conflicts
+        await dbService.clear(STORES.GRADES);
+        await dbService.clear(STORES.CLASSES);
+        await dbService.clear(STORES.STUDENTS);
+        await dbService.clear(STORES.ATTENDANCE);
+        await dbService.clear(STORES.SETTINGS);
+        await dbService.clear(STORES.ASSETS);
+
+        // Import new data
+        if (data.grades.length) await dbService.putBulk(STORES.GRADES, data.grades);
+        if (data.classes.length) await dbService.putBulk(STORES.CLASSES, data.classes);
+        if (data.students.length) await dbService.putBulk(STORES.STUDENTS, data.students);
+        
+        // Attendance needs manual key reconstruction because IndexedDB putBulk in our util 
+        // assumes in-line keys or simple put. Attendance store has no keyPath.
+        if (data.attendance && data.attendance.length) {
+            for(const record of data.attendance) {
+                const key = `${record.date}-${record.studentId}`;
+                await dbService.put(STORES.ATTENDANCE, record, key);
+            }
+        }
+
+        if (data.settings && data.settings.length) await dbService.putBulk(STORES.SETTINGS, data.settings);
+        if (data.assets && data.assets.length) await dbService.putBulk(STORES.ASSETS, data.assets);
+
+        // Re-initialize memory
+        await initializeData();
+        return true;
+    } catch (e) {
+        console.error("Import failed:", e);
+        return false;
+    }
 };
 
-export const getSchoolSettings = () => {
-  const settingsStr = localStorage.getItem(KEYS.SETTINGS);
-  if (settingsStr) {
-    return JSON.parse(settingsStr);
-  }
-  return null;
+export const resetDatabase = async () => {
+    await dbService.clear(STORES.GRADES);
+    await dbService.clear(STORES.CLASSES);
+    await dbService.clear(STORES.STUDENTS);
+    await dbService.clear(STORES.ATTENDANCE);
+    await dbService.clear(STORES.SETTINGS);
+    await dbService.clear(STORES.ASSETS);
+    
+    // Clear memory
+    grades = [];
+    classes = [];
+    students = [];
+    attendanceStore = {};
 };
 
-// --- School Assets (Signatures & Stamps) Management ---
+
+// --- CRUD Operations ---
+
+export const getSchoolSettings = async () => {
+    const settings = await dbService.get<{name: string, district: string, id: string}>(STORES.SETTINGS, 'main');
+    return settings ? { ...settings, isSetup: true } : { name: '', district: '', isSetup: false };
+};
+
+export const saveSchoolSettings = async (name: string, district: string) => {
+    await dbService.put(STORES.SETTINGS, { id: 'main', name, district });
+};
+
+export const getSchoolAssets = async (): Promise<SchoolAssets> => {
+    const assets = await dbService.get<SchoolAssets & {id: string}>(STORES.ASSETS, 'main');
+    return assets || {};
+};
+
+export const saveSchoolAssets = async (assets: SchoolAssets) => {
+    await dbService.put(STORES.ASSETS, { ...assets, id: 'main' });
+};
+
 export interface SchoolAssets {
-  headerLogo?: string;   // الشعار الرسمي
-  committeeSig?: string; // base64
-  principalSig?: string; // base64
-  schoolStamp?: string;  // base64
+    headerLogo?: string;
+    committeeSig?: string;
+    schoolStamp?: string;
+    principalSig?: string;
 }
 
-export const saveSchoolAssets = (assets: SchoolAssets) => {
-  const current = getSchoolAssets();
-  const updated = { ...current, ...assets };
-  try {
-    localStorage.setItem(KEYS.ASSETS, JSON.stringify(updated));
-  } catch (e) {
-    console.error("Storage full for images", e);
-    alert("عذراً، مساحة التخزين ممتلئة. حاول استخدام صور بحجم أصغر.");
-  }
-  return updated;
-};
-
-export const getSchoolAssets = (): SchoolAssets => {
-  return loadData(KEYS.ASSETS, {});
-};
-
-// --- Grade Management ---
+// Grades & Classes
 export const addGrade = (name: string) => {
-  const newGrade: Grade = {
-    id: `g-${Date.now()}`,
-    name: name
-  };
-  grades.push(newGrade);
-  saveData(KEYS.GRADES, grades);
-  return newGrade;
+    const newGrade = { id: Date.now().toString(), name };
+    grades.push(newGrade);
+    dbService.put(STORES.GRADES, newGrade);
+    return newGrade;
 };
 
 export const deleteGrade = (id: string) => {
-  const index = grades.findIndex(g => g.id === id);
-  if (index > -1) {
-    grades.splice(index, 1);
-    saveData(KEYS.GRADES, grades);
-
-    // Remove associated classes
-    const classesToRemove = classes.filter(c => c.gradeId === id);
-    classesToRemove.forEach(c => deleteClass(c.id));
+    grades = grades.filter(g => g.id !== id);
+    // Cascade delete classes
+    const classesToDelete = classes.filter(c => c.gradeId === id);
+    classesToDelete.forEach(c => deleteClass(c.id));
+    classes = classes.filter(c => c.gradeId !== id);
     
-    // Remove associated students
-    const studentsToRemove = students.filter(s => s.gradeId === id);
-    studentsToRemove.forEach(s => deleteStudent(s.id));
-  }
+    dbService.delete(STORES.GRADES, id);
+    classesToDelete.forEach(c => dbService.delete(STORES.CLASSES, c.id));
 };
 
-// --- Class Management ---
 export const addClass = (name: string, gradeId: string) => {
-  const newClass: SchoolClass = {
-    id: `c-${Date.now()}`,
-    name: name,
-    gradeId: gradeId
-  };
-  classes.push(newClass);
-  saveData(KEYS.CLASSES, classes);
-  return newClass;
+    const newClass = { id: Date.now().toString(), name, gradeId };
+    classes.push(newClass);
+    dbService.put(STORES.CLASSES, newClass);
+    return newClass;
 };
 
 export const deleteClass = (id: string) => {
-  const index = classes.findIndex(c => c.id === id);
-  if (index > -1) {
-    classes.splice(index, 1);
-    saveData(KEYS.CLASSES, classes);
-
-    // Remove students in this class
-    const studentsToRemove = students.filter(s => s.classId === id);
-    studentsToRemove.forEach(s => deleteStudent(s.id));
-  }
+    classes = classes.filter(c => c.id !== id);
+    // Cascade delete students
+    const studentsToDelete = students.filter(s => s.classId === id);
+    studentsToDelete.forEach(s => deleteStudent(s.id));
+    
+    dbService.delete(STORES.CLASSES, id);
 };
 
-
-// Helper to add a student
+// Students
 export const addStudent = (student: Omit<Student, 'id'>) => {
-  const newId = `new-${Date.now()}`;
-  const newStudent = { ...student, id: newId };
-  students.unshift(newStudent); // Add to the beginning
-  saveData(KEYS.STUDENTS, students);
-  return newStudent;
+    const newStudent = { ...student, id: Date.now().toString() };
+    students.push(newStudent);
+    dbService.put(STORES.STUDENTS, newStudent);
+    return newStudent;
 };
 
-// Helper to update a student
-export const updateStudent = (id: string, updates: Partial<Student>) => {
-  const index = students.findIndex(s => s.id === id);
-  if (index > -1) {
-    students[index] = { ...students[index], ...updates };
-    saveData(KEYS.STUDENTS, students);
-    return students[index];
-  }
-  return null;
+export const addStudentsBulk = (studentsData: Omit<Student, 'id'>[]) => {
+    const newStudents = studentsData.map((s, idx) => ({
+        ...s,
+        id: (Date.now() + idx).toString()
+    }));
+    students.push(...newStudents);
+    dbService.putBulk(STORES.STUDENTS, newStudents);
 };
 
-// Helper to add multiple students (Optimized for Bulk)
-export const addStudentsBulk = (newStudentsData: Omit<Student, 'id'>[]) => {
-  const timestamp = Date.now();
-  const newStudents = newStudentsData.map((s, index) => ({
-    ...s,
-    id: `bulk-${timestamp}-${index}`
-  }));
-  students.unshift(...newStudents);
-  saveData(KEYS.STUDENTS, students);
-  return newStudents;
+export const updateStudent = (id: string, data: Partial<Omit<Student, 'id'>>) => {
+    const index = students.findIndex(s => s.id === id);
+    if (index !== -1) {
+        students[index] = { ...students[index], ...data };
+        dbService.put(STORES.STUDENTS, students[index]);
+    }
 };
 
-// Helper to delete a student
 export const deleteStudent = (id: string) => {
-  const index = students.findIndex(s => s.id === id);
-  if (index > -1) {
-    students.splice(index, 1);
-    saveData(KEYS.STUDENTS, students);
-  }
+    students = students.filter(s => s.id !== id);
+    dbService.delete(STORES.STUDENTS, id);
+    // Also delete attendance? Typically yes, but we might keep it for historical stats.
+    // For simplicity, we leave orphan attendance records or we could clean them up.
+};
+
+// Attendance
+export const saveAttendance = (date: string, studentId: string, status: AttendanceStatus, period?: number, note?: string) => {
+    const key = `${date}-${studentId}`;
+    const record: AttendanceRecord = {
+        date,
+        studentId,
+        status,
+        period,
+        note,
+        timestamp: Date.now()
+    };
+    
+    attendanceStore[key] = record;
+    dbService.put(STORES.ATTENDANCE, record, key);
 };
 
 export const getAttendance = (date: string, studentId: string): AttendanceStatus => {
-  const key = `${date}-${studentId}`;
-  return attendanceStore[key]?.status || AttendanceStatus.PRESENT; // Default to present
+    const key = `${date}-${studentId}`;
+    return attendanceStore[key]?.status || AttendanceStatus.PRESENT;
 };
 
 export const getAttendanceRecord = (date: string, studentId: string): AttendanceRecord | undefined => {
-  const key = `${date}-${studentId}`;
-  return attendanceStore[key];
+    const key = `${date}-${studentId}`;
+    return attendanceStore[key];
 };
 
-export const saveAttendance = (date: string, studentId: string, status: AttendanceStatus, period?: number) => {
-  const key = `${date}-${studentId}`;
-  attendanceStore[key] = {
-    date,
-    studentId,
-    status,
-    period,
-    timestamp: Date.now()
-  };
-  saveData(KEYS.ATTENDANCE, attendanceStore);
-};
+export interface StudentPeriodStats {
+    student: Student;
+    absentCount: number;
+    truantCount: number;
+    escapeCount: number;
+}
 
 export const getDailyStats = (date: string) => {
-  let present = 0;
-  let absent = 0;
-  let truant = 0;
-  let escape = 0;
+    let presentCount = 0;
+    let absentCount = 0;
+    let truantCount = 0;
+    let escapeCount = 0;
 
-  // Optimizing stat calculation: Only iterate active students
-  students.forEach(s => {
-    const status = getAttendance(date, s.id);
-    if (status === AttendanceStatus.ABSENT) absent++;
-    else if (status === AttendanceStatus.TRUANT) truant++;
-    else if (status === AttendanceStatus.ESCAPE) escape++;
-    else present++;
-  });
+    // Iterate over all students to check their status for this date
+    students.forEach(student => {
+        const status = getAttendance(date, student.id);
+        if (status === AttendanceStatus.PRESENT) presentCount++;
+        else if (status === AttendanceStatus.ABSENT) absentCount++;
+        else if (status === AttendanceStatus.TRUANT) truantCount++;
+        else if (status === AttendanceStatus.ESCAPE) escapeCount++;
+    });
 
-  return {
-    totalStudents: students.length,
-    presentCount: present,
-    absentCount: absent,
-    truantCount: truant,
-    escapeCount: escape,
-    attendanceRate: students.length > 0 ? Math.round((present / students.length) * 100) : 0
-  };
+    const totalStudents = students.length;
+    const attendanceRate = totalStudents > 0 
+        ? Math.round(((totalStudents - absentCount) / totalStudents) * 100) 
+        : 100;
+
+    return {
+        totalStudents,
+        presentCount,
+        absentCount,
+        truantCount,
+        escapeCount,
+        attendanceRate
+    };
 };
 
-export const getAbsentStudentsForDate = (date: string): Student[] => {
-    return students.filter(s => getAttendance(date, s.id) === AttendanceStatus.ABSENT);
+export const getStudentHistory = (studentId: string, startDate?: string, endDate?: string) => {
+    // Filter attendance store for this student
+    return Object.values(attendanceStore)
+        .filter(r => {
+            if (r.studentId !== studentId) return false;
+            // Only return records with violations (Not Present)
+            if (r.status === AttendanceStatus.PRESENT) return false; 
+            
+            if (startDate && r.date < startDate) return false;
+            if (endDate && r.date > endDate) return false;
+            return true;
+        })
+        .sort((a, b) => b.date.localeCompare(a.date));
 };
-
-export const getTruantStudentsForDate = (date: string): Student[] => {
-    return students.filter(s => getAttendance(date, s.id) === AttendanceStatus.TRUANT);
-};
-
-// --- Reporting Functions ---
-
-// Get attendance history for a specific student, optionally within a date range
-export const getStudentHistory = (studentId: string, startDate?: string, endDate?: string): AttendanceRecord[] => {
-  return Object.values(attendanceStore)
-    .filter(record => {
-      if (record.studentId !== studentId) return false;
-      if (record.status === AttendanceStatus.PRESENT) return false;
-      
-      // Date Filtering
-      if (startDate && record.date < startDate) return false;
-      if (endDate && record.date > endDate) return false;
-      
-      return true;
-    })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-};
-
-// Get aggregated stats for all students in a class over a period
-export interface StudentPeriodStats {
-  student: Student;
-  absentCount: number;
-  truantCount: number; // Includes both Truant and Escape for simplicity in summary, or separated
-  escapeCount: number;
-}
 
 export const getClassPeriodStats = (classId: string, startDate: string, endDate: string): StudentPeriodStats[] => {
     const classStudents = students.filter(s => s.classId === classId);
     
     return classStudents.map(student => {
-        let absent = 0;
-        let truant = 0;
-        let escape = 0;
-
-        // Iterate through all records for this student (Not efficient O(N), but fine for local data scale)
-        // A more efficient way if we had an index by date, but simple loop is robust here.
-        Object.values(attendanceStore).forEach(record => {
-            if (record.studentId === student.id && record.date >= startDate && record.date <= endDate) {
-                if (record.status === AttendanceStatus.ABSENT) absent++;
-                if (record.status === AttendanceStatus.TRUANT) truant++;
-                if (record.status === AttendanceStatus.ESCAPE) escape++;
-            }
-        });
-
+        const history = getStudentHistory(student.id, startDate, endDate);
         return {
             student,
-            absentCount: absent,
-            truantCount: truant,
-            escapeCount: escape
+            absentCount: history.filter(r => r.status === AttendanceStatus.ABSENT).length,
+            truantCount: history.filter(r => r.status === AttendanceStatus.TRUANT).length,
+            escapeCount: history.filter(r => r.status === AttendanceStatus.ESCAPE).length,
         };
-    }).filter(stat => stat.absentCount > 0 || stat.truantCount > 0 || stat.escapeCount > 0); 
-    // Only return students with at least one violation, OR remove filter to show all. 
-    // Let's keep all students if the user wants a full report, but maybe better to sort.
-    // Let's actually return ALL students so the teacher sees who has 0 absence too.
+    });
 };

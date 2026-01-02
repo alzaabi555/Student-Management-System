@@ -3,12 +3,9 @@ import { AttendanceStatus, AttendanceRecord, Student } from '../types';
 import { StudentPeriodStats, SchoolAssets } from './dataService';
 
 /**
- * دالة الطباعة الأساسية - الحل الجذري
- * تقوم هذه الدالة بحقن تنسيقات CSS خاصة تخفي واجهة التطبيق بالكامل
- * وتظهر فقط تقرير الطباعة عند الضغط على زر طباعة أو Ctrl+P
+ * دالة الطباعة الأساسية
  */
 const printHTML = (contentBody: string) => {
-  // 1. التأكد من وجود حاوية الطباعة أو إنشائها
   let printContainer = document.getElementById('print-container');
   if (!printContainer) {
     printContainer = document.createElement('div');
@@ -16,10 +13,8 @@ const printHTML = (contentBody: string) => {
     document.body.appendChild(printContainer);
   }
   
-  // 2. وضع المحتوى داخل الحاوية
   printContainer.innerHTML = contentBody;
 
-  // 3. إضافة تنسيقات الطباعة الإجبارية (تكتب مرة واحدة فقط)
   if (!document.getElementById('print-css-rules')) {
     const style = document.createElement('style');
     style.id = 'print-css-rules';
@@ -28,49 +23,30 @@ const printHTML = (contentBody: string) => {
         #print-container { display: none; }
       }
       @media print {
-        /* إخفاء كل شيء في الصفحة */
         body > *:not(#print-container) { display: none !important; }
-        
-        /* إعدادات الصفحة */
-        @page { 
-          size: A4; 
-          margin: 10mm; 
-        }
-        
-        /* إظهار حاوية الطباعة فقط وتنسيقها */
+        @page { size: A4; margin: 10mm; }
         #print-container {
           display: block !important;
           position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          background-color: white;
-          color: black;
-          font-family: 'Tajawal', sans-serif;
-          direction: rtl;
-          z-index: 9999;
+          top: 0; left: 0; width: 100%;
+          background-color: white; color: black;
+          font-family: 'Tajawal', sans-serif; direction: rtl;
         }
-
-        /* تنسيقات الجدول والتقرير */
         .print-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 30px; }
         .print-title { font-size: 24px; font-weight: 800; margin: 0; }
         .print-subtitle { font-size: 16px; color: #444; margin-top: 5px; }
         .print-meta { display: flex; justify-content: space-between; margin-top: 20px; font-weight: bold; font-size: 14px; border: 1px solid #000; padding: 10px; border-radius: 5px; }
-        
         table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
         th, td { border: 1px solid #000; padding: 8px; text-align: center; }
         th { background-color: #f0f0f0 !important; -webkit-print-color-adjust: exact; font-weight: bold; }
-        
         .status-absent { background-color: #ffe4e6 !important; -webkit-print-color-adjust: exact; font-weight: bold; }
         .status-truant { background-color: #fef3c7 !important; -webkit-print-color-adjust: exact; }
-        
         .footer-sig { margin-top: 80px; display: flex; justify-content: space-between; page-break-inside: avoid; padding: 0 50px; }
       }
     `;
     document.head.appendChild(style);
   }
 
-  // 4. استدعاء أمر الطباعة (بعد مهلة قصيرة جداً لضمان تحديث DOM)
   setTimeout(() => {
     window.print();
   }, 100);
@@ -82,7 +58,8 @@ export const printAttendanceSheet = (
   className: string,
   date: string,
   students: Student[],
-  attendanceData: Record<string, AttendanceStatus>
+  attendanceData: Record<string, AttendanceStatus>,
+  attendanceRecords?: Record<string, AttendanceRecord>
 ) => {
   const rows = students.map((student, index) => {
     const status = attendanceData[student.id] || AttendanceStatus.PRESENT;
@@ -93,10 +70,10 @@ export const printAttendanceSheet = (
        statusText = 'غائب';
        rowClass = 'status-absent';
     } else if (status === AttendanceStatus.TRUANT) {
-       statusText = 'تسرب';
+       statusText = 'تسرب من الحصة';
        rowClass = 'status-truant';
     } else if (status === AttendanceStatus.ESCAPE) {
-       statusText = 'تسرب';
+       statusText = 'تسرب من المدرسة';
        rowClass = 'status-truant';
     }
     
@@ -120,27 +97,22 @@ export const printAttendanceSheet = (
         <span>الفصل: ${className}</span>
       </div>
     </div>
-    
     <table>
       <thead>
         <tr>
           <th width="50">#</th>
           <th>اسم الطالب</th>
-          <th width="100">الحالة</th>
-          <th>ملاحظات المعلم</th>
+          <th width="150">الحالة</th>
+          <th>ملاحظات</th>
         </tr>
       </thead>
-      <tbody>
-        ${rows}
-      </tbody>
+      <tbody>${rows}</tbody>
     </table>
-    
     <div class="footer-sig">
       <div>توقيع المعلم: ....................</div>
       <div>ختم الإدارة: ....................</div>
     </div>
   `;
-
   printHTML(html);
 };
 
@@ -152,14 +124,12 @@ export const printClassPeriodReport = (
   endDate: string,
   stats: StudentPeriodStats[]
 ) => {
-  // Sort by total violations (descending)
   const sortedStats = [...stats].sort((a, b) => 
     (b.absentCount + b.truantCount + b.escapeCount) - (a.absentCount + a.truantCount + a.escapeCount)
   );
 
   const rows = sortedStats.map((stat, index) => {
     const totalViolations = stat.absentCount + stat.truantCount + stat.escapeCount;
-    // Highlight if there are violations
     const rowClass = totalViolations > 0 ? '' : 'text-gray-400';
     
     return `
@@ -184,56 +154,24 @@ export const printClassPeriodReport = (
         <span>الفصل: ${className}</span>
       </div>
     </div>
-    
     <table>
       <thead>
         <tr>
           <th width="50">#</th>
           <th>اسم الطالب</th>
           <th>عدد أيام الغياب</th>
-          <th>تسرب (حصة)</th>
-          <th>تسرب</th>
+          <th>تسرب من الحصة</th>
+          <th>تسرب من المدرسة</th>
           <th>الإجمالي</th>
         </tr>
       </thead>
-      <tbody>
-        ${rows}
-      </tbody>
+      <tbody>${rows}</tbody>
     </table>
-    
     <div class="footer-sig">
       <div>الأخصائي الاجتماعي: ....................</div>
       <div>مدير المدرسة: ....................</div>
     </div>
   `;
-
-  printHTML(html);
-};
-
-export const printDailyReport = (
-  schoolName: string,
-  date: string,
-  reportText: string
-) => {
-  const html = `
-    <div class="print-header">
-      <h1 class="print-title">${schoolName}</h1>
-      <div class="print-subtitle">التقرير الإداري الذكي</div>
-      <div class="print-meta" style="justify-content: center">
-        <span>تاريخ التقرير: ${date}</span>
-      </div>
-    </div>
-    
-    <div style="font-size: 16px; line-height: 2; text-align: justify; padding: 20px; border: 1px solid #000; border-radius: 8px; margin-top: 30px; min-height: 400px;">
-      ${reportText.replace(/\n/g, '<br>')}
-    </div>
-    
-    <div class="footer-sig" style="margin-top: 80px;">
-      <div>مدير المدرسة</div>
-      <div>يعتمد،</div>
-    </div>
-  `;
-
   printHTML(html);
 };
 
@@ -243,23 +181,26 @@ export const printStudentReport = (
   gradeName: string,
   className: string,
   records: AttendanceRecord[],
-  periodText?: string // Optional period text (e.g., "From X to Y")
+  periodText?: string
 ) => {
   const recordsRows = records.length === 0 
-  ? `<tr><td colspan="3">لا توجد سجلات غياب أو تسرب لهذا الطالب خلال الفترة المحددة.</td></tr>`
+  ? `<tr><td colspan="4">لا توجد سجلات غياب أو تسرب لهذا الطالب خلال الفترة المحددة.</td></tr>`
   : records.map((record, index) => {
     let statusText = '';
     let rowClass = '';
+    let details = '';
     
     if (record.status === AttendanceStatus.ABSENT) {
        statusText = 'غائب';
        rowClass = 'status-absent';
     } else if (record.status === AttendanceStatus.TRUANT) {
-       statusText = 'تسرب من حصة';
+       statusText = 'تسرب من الحصة';
        rowClass = 'status-truant';
+       if (record.period) details = `حصة: ${record.period}`;
     } else if (record.status === AttendanceStatus.ESCAPE) {
        statusText = 'تسرب من المدرسة';
        rowClass = 'status-truant';
+       if (record.note) details = `ملاحظة: ${record.note}`;
     }
     
     return `
@@ -267,6 +208,7 @@ export const printStudentReport = (
         <td>${index + 1}</td>
         <td>${record.date}</td>
         <td>${statusText}</td>
+        <td style="font-size: 10px;">${details}</td>
       </tr>
     `;
   }).join('');
@@ -281,30 +223,23 @@ export const printStudentReport = (
         <span>الفصل: ${className}</span>
       </div>
     </div>
-    
-    <div style="margin: 20px 0;">
-      <h3>سجل المخالفات (غياب / تسرب):</h3>
-    </div>
-
+    <div style="margin: 20px 0;"><h3>سجل المخالفات (غياب / تسرب):</h3></div>
     <table>
       <thead>
         <tr>
           <th width="50">#</th>
-          <th>التاريخ</th>
+          <th width="120">التاريخ</th>
           <th>الحالة</th>
+          <th>تفاصيل</th>
         </tr>
       </thead>
-      <tbody>
-        ${recordsRows}
-      </tbody>
+      <tbody>${recordsRows}</tbody>
     </table>
-    
     <div class="footer-sig" style="margin-top: 60px;">
       <div>توقيع ولي الأمر بالعلم: ....................</div>
       <div>الأخصائي الاجتماعي: ....................</div>
     </div>
   `;
-
   printHTML(html);
 };
 
@@ -317,7 +252,8 @@ export const printSummonLetter = (
   date: string,
   time: string,
   reason: string,
-  assets?: SchoolAssets // Optional assets
+  issueDate: string,
+  assets?: SchoolAssets
 ) => {
   
   const committeeSigHtml = assets?.committeeSig 
@@ -332,15 +268,15 @@ export const printSummonLetter = (
     ? `<div style="text-align: center;"><img src="${assets.schoolStamp}" style="width: 120px; opacity: 0.8;" /></div>`
     : ``;
 
+  const headerLogoHtml = assets?.headerLogo 
+    ? `<img src="${assets.headerLogo}" alt="الشعار" style="height: 80px; width: auto; margin: 0 auto; display: block;" />`
+    : `<img src="/assets/logo.png" alt="الشعار" style="height: 80px; width: auto; margin: 0 auto; display: block;" />`;
+
   const html = `
-    <!-- Frame Container -->
     <div style="border: 4px double #000; padding: 40px; margin: 0 auto; height: 98vh; box-sizing: border-box; position: relative; background: #fff;">
         
-        <!-- Official Letterhead Header -->
         <div style="text-align: center; margin-bottom: 40px; line-height: 1.8; color: #000; direction: rtl;">
-          <div style="margin-bottom: 15px;">
-             <img src="/assets/logo.png" alt="الشعار" style="width: 70px; height: auto; margin: 0 auto; display: block;" />
-          </div>
+          <div style="margin-bottom: 15px;">${headerLogoHtml}</div>
           <div style="font-size: 20px; font-weight: bold;">سلطنة عُمان</div>
           <div style="font-size: 20px; font-weight: bold;">وزارة التربية والتعليم</div>
           <div style="font-size: 18px; font-weight: bold;">المديرية العامة للتربية والتعليم لمحافظة ${districtName}</div>
@@ -349,56 +285,53 @@ export const printSummonLetter = (
         
         <div style="padding: 10px; font-size: 18px; line-height: 2.2; text-align: justify; direction: rtl;">
             
-            <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
-                <div style="font-weight: bold;">
-                    الفاضل ولي أمر الطالب : ( ${studentName} )
-                </div>
-                <div style="font-weight: bold;">
-                    المقيد بالصف : ( ${gradeName} / ${className} )
+            <div style="border-bottom: 1px solid #000; padding-bottom: 20px; margin-bottom: 30px;">
+                <div style="font-weight: bold; margin-bottom: 15px;">الفاضل ولي أمر الطالب : ( ${studentName} )</div>
+                <div style="display: flex; justify-content: space-between; font-weight: bold;">
+                    <span>المقيد بالصف : ( ${gradeName} / ${className} )</span>
+                    <span style="font-weight: normal; font-size: 16px;">تحريراً في: ${issueDate}</span>
                 </div>
             </div>
 
-            <div style="text-align: center; margin: 30px 0; font-weight: bold; font-size: 22px;">
+            <div style="text-align: center; margin: 30px 0; font-weight: bold; font-size: 22px; text-decoration: underline; text-underline-offset: 8px;">
                 السلام علیکم ورحمة الله وبرکاته
             </div>
             
-            <p style="text-indent: 50px; margin-bottom: 20px;">
-                نظراً لأهمية التعاون بين المدرسة وولي الأمر فيما يخدم مصلحة الطالب، ويحقق له النجاح، ونأمل منكم الحضور إلى المدرسة لبحث بعض الأمور المتعلقة بابنكم ، ( <strong>${reason}</strong> ) ولنا في حضوركم أمل بهدف التعاون بين البيت والمدرسة لتحقيق الرسالة التربوية الهادفة التي نسعى إليها ، وتأمل المدرسة حضوركم في أقرب فرصة ممكنة لديكم .
-            </p>
+            <div style="text-align: justify; text-align-last: right;">
+                <p style="margin-bottom: 10px;">
+                    نظراً لأهمية التعاون بين المدرسة وولي الأمر فيما يخدم مصلحة الطالب، ويحقق له النجاح، نأمل منكم الحضور إلى المدرسة لبحث بعض الأمور المتعلقة بابنكم:
+                </p>
+                <div style="text-align: center; margin: 25px 0; font-weight: bold; font-size: 20px;">
+                    ( ${reason} )
+                </div>
+                <p>
+                    ولنا في حضوركم أمل بهدف التعاون بين البيت والمدرسة لتحقيق الرسالة التربوية الهادفة التي نسعى إليها، وتأمل المدرسة حضوركم في أقرب فرصة ممكنة لديكم.
+                </p>
+            </div>
 
-            <p style="margin-top: 30px; font-size: 16px; color: #555;">
+            <p style="margin-top: 30px; font-size: 16px; color: #555; text-align: center; border: 1px solid #ddd; padding: 10px; border-radius: 5px; background: #fafafa;">
                * الموعد المقترح: يوم <strong>${date}</strong> الساعة <strong>${time}</strong>.
             </p>
 
-            <p style="margin-top: 30px; font-weight: bold;">
+            <p style="margin-top: 30px; font-weight: bold; text-align: center;">
                 شاكرين لكم حسن تعاونكم وتجاوبكم معنا لتحقيق مصلحة الطالب
             </p>
         </div>
 
-        <!-- Footer Signatures Container -->
-        <!-- Reduced margin-top to allow stamp to overlap if needed, using Flexbox for spacing -->
         <div style="margin-top: 50px; padding: 0 20px; display: flex; justify-content: space-between; align-items: flex-end; position: relative;">
-            
-            <!-- Right: Committee Head -->
             <div style="text-align: center; width: 220px; z-index: 2;">
                 <p style="font-weight: bold; margin-bottom: 10px; font-size: 18px;">رئيس لجنة شؤون الطلبة بالمدرسة</p>
                 ${committeeSigHtml}
             </div>
-
-            <!-- Center: Stamp (Absolute positioning to ensure true center) -->
             <div style="position: absolute; left: 50%; transform: translateX(-50%); bottom: 10px; z-index: 1;">
                  ${stampHtml}
             </div>
-
-            <!-- Left: Principal -->
             <div style="text-align: center; width: 220px; z-index: 2;">
                 <p style="font-weight: bold; margin-bottom: 10px; font-size: 18px;">مدير المدرسة</p>
                 ${principalSigHtml}
             </div>
         </div>
-
     </div>
   `;
-
   printHTML(html);
 };
