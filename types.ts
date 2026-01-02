@@ -1,4 +1,3 @@
-
 export enum AttendanceStatus {
   PRESENT = 'hader',
   ABSENT = 'ghaeb',
@@ -46,6 +45,7 @@ declare global {
   interface Window {
     electron?: {
       openExternal: (url: string) => Promise<void>;
+      print: () => void;
     };
   }
 }
