@@ -35,17 +35,33 @@
   },
   "build": {
     "appId": "com.madrasati.app.v2",
-    "productName": "Madrasati Desktop",
+    "productName": "نظام مدرستي للإدارة",
     "directories": {
       "output": "dist-electron"
     },
     "files": [
       "dist/**/*",
-      "electron/**/*"
+      "electron/**/*",
+      "public/**/*"
     ],
     "win": {
       "target": "nsis",
-      "icon": "public/assets/icon.png"
+      "icon": "public/assets/icon.ico",
+      "legalTrademarks": "Madrasati Systems"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "نظام مدرستي",
+      "installerIcon": "public/assets/icon.ico",
+      "uninstallerIcon": "public/assets/icon.ico",
+      "installerHeaderIcon": "public/assets/icon.ico",
+      "deleteAppDataOnUninstall": true,
+      "runAfterFinish": true,
+      "language": "1025"
     }
   }
 }

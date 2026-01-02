@@ -6,7 +6,7 @@
     <title>مدرستي - إدارة الغياب (ويندوز)</title>
     
     <!-- Favicon & Icons -->
-    <link rel="icon" type="image/png" href="assets/icon.png" />
+    <link rel="icon" type="image/x-icon" href="assets/icon.ico" />
 
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -18,29 +18,30 @@
         theme: {
           extend: {
             colors: {
-              primary: '#4338ca',
-              primaryLight: '#6366f1',
+              // Windows 11 Accent Colors (Simulated)
+              primary: '#005FB8', // Windows Blue
+              primaryLight: '#60CDFF',
+              winBg: '#f3f3f3', // Mica Alt color
+              surface: '#ffffff',
+              surfaceHover: '#fbfbfb',
             },
             fontFamily: {
-              sans: ['Tajawal', 'sans-serif'],
+              sans: ['Tajawal', 'Segoe UI', 'sans-serif'],
             },
             boxShadow: {
-              'soft': '0 10px 40px -10px rgba(0,0,0,0.08)',
-              'glow': '0 0 20px rgba(67, 56, 202, 0.3)',
-              'floating': '0 20px 60px -15px rgba(0,0,0,0.15)',
+              'win': '0 2px 4px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.02)', // Subtle elevation
+              'win-hover': '0 4px 12px rgba(0, 0, 0, 0.08)',
+              'flyout': '0 8px 16px rgba(0, 0, 0, 0.14)',
+            },
+            borderRadius: {
+              'win': '8px', // Standard Win11 radius
+              'win-lg': '12px', // Cards
             },
             animation: {
-              'blob': 'blob 7s infinite',
-              'fadeIn': 'fadeIn 0.5s ease-out forwards',
-              'scaleIn': 'scaleIn 0.3s ease-out forwards',
+              'fadeIn': 'fadeIn 0.4s cubic-bezier(0.1, 0.9, 0.2, 1) forwards',
+              'scaleIn': 'scaleIn 0.3s cubic-bezier(0.1, 0.9, 0.2, 1) forwards',
             },
             keyframes: {
-              blob: {
-                '0%': { transform: 'translate(0px, 0px) scale(1)' },
-                '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
-                '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
-                '100%': { transform: 'translate(0px, 0px) scale(1)' },
-              },
               fadeIn: {
                 '0%': { opacity: '0', transform: 'translateY(10px)' },
                 '100%': { opacity: '1', transform: 'translateY(0)' },
@@ -56,26 +57,61 @@
     </script>
     
     <style>
-       /* Basic Reset */
+       /* Windows 11 Style Reset */
       body {
         margin: 0;
-        font-family: 'Tajawal', sans-serif;
-        background-color: #f8fafc;
+        font-family: 'Tajawal', 'Segoe UI', sans-serif;
+        background-color: #f3f3f3; /* Mica Alt */
+        color: #1a1a1a;
         overscroll-behavior-y: none;
+        -webkit-font-smoothing: antialiased;
       }
-      /* Hide Scrollbar */
-      .no-scrollbar::-webkit-scrollbar {
-        display: none;
+      
+      /* Win11 Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
       }
-      .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
+      ::-webkit-scrollbar-track {
+        background: transparent;
       }
-      .glass-card {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
+      ::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 10px;
+        border: 2px solid #f3f3f3; /* Create padding effect */
       }
+      ::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(0, 0, 0, 0.4);
+      }
+
+      /* Acrylic Effect Class */
+      .acrylic {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(20px) saturate(125%);
+        -webkit-backdrop-filter: blur(20px) saturate(125%);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+      }
+      
+      .win-card {
+        background: white;
+        border: 1px solid rgba(0,0,0,0.05);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+        border-radius: 8px;
+      }
+      
+      .win-input {
+        background: white;
+        border: 1px solid #e5e5e5;
+        border-radius: 4px;
+        border-bottom: 2px solid #888;
+        transition: all 0.2s;
+      }
+      .win-input:focus {
+        border-color: #005FB8;
+        border-bottom-color: #005FB8;
+        background: #fbfbfb;
+      }
+
     </style>
 <script type="importmap">
 {
@@ -92,13 +128,15 @@
     "electron": "https://esm.sh/electron@^39.2.7",
     "path": "https://esm.sh/path@^0.12.7",
     "url": "https://esm.sh/url@^0.11.4",
-    "react-dom": "https://esm.sh/react-dom@^19.2.3"
+    "react-dom": "https://esm.sh/react-dom@^19.2.3",
+    "html2canvas": "https://esm.sh/html2canvas@^1.4.1",
+    "jspdf": "https://esm.sh/jspdf@^2.5.1"
   }
 }
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="text-slate-800 font-sans antialiased select-none min-h-screen">
+  <body class="text-slate-900 font-sans antialiased select-none min-h-screen">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
