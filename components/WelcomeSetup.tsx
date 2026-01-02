@@ -10,11 +10,14 @@ interface WelcomeSetupProps {
 const WelcomeSetup: React.FC<WelcomeSetupProps> = ({ onComplete }) => {
   const [schoolName, setSchoolName] = useState('');
   const [district, setDistrict] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (schoolName && district) {
-      saveSchoolSettings(schoolName, district);
+      setIsSaving(true);
+      await saveSchoolSettings(schoolName, district);
+      setIsSaving(false);
       onComplete();
     }
   };
@@ -57,6 +60,7 @@ const WelcomeSetup: React.FC<WelcomeSetupProps> = ({ onComplete }) => {
                             onChange={(e) => setSchoolName(e.target.value)}
                             className="form-input pr-11 text-lg"
                             placeholder="مثال: مدرسة الإبداع للتعليم الأساسي"
+                            disabled={isSaving}
                         />
                     </div>
                 </div>
@@ -75,6 +79,7 @@ const WelcomeSetup: React.FC<WelcomeSetupProps> = ({ onComplete }) => {
                             onChange={(e) => setDistrict(e.target.value)}
                             className="form-input pr-11 text-lg"
                             placeholder="مثال: المديرية العامة لمحافظة شمال الباطنة"
+                            disabled={isSaving}
                         />
                     </div>
                 </div>
@@ -88,9 +93,9 @@ const WelcomeSetup: React.FC<WelcomeSetupProps> = ({ onComplete }) => {
 
                 {/* Actions */}
                 <div className="pt-4 grid grid-cols-1 gap-3">
-                    <button type="submit" className="btn-primary w-full justify-center text-base py-3">
-                        <span>حفظ البيانات وبدء النظام</span>
-                        <ArrowRight size={20} />
+                    <button type="submit" disabled={isSaving} className="btn-primary w-full justify-center text-base py-3">
+                        {isSaving ? 'جاري الحفظ...' : <span>حفظ البيانات وبدء النظام</span>}
+                        {!isSaving && <ArrowRight size={20} />}
                     </button>
                     
                     <button type="button" onClick={handleExit} className="btn-secondary w-full justify-center text-red-600 hover:bg-red-50 hover:border-red-200 border-gray-200 text-sm">

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { MailWarning, Printer, CalendarClock, User, Share2, Settings, Upload, Image as ImageIcon, Trash2, Eye, X, FileWarning, ChevronDown } from 'lucide-react';
+import { MailWarning, Printer, CalendarClock, User, Share2, Settings, Upload, Image as ImageIcon, Trash2, Eye, X, FileWarning, ChevronDown, Calendar } from 'lucide-react';
 import { getSchoolSettings, grades, classes, students, saveSchoolAssets, getSchoolAssets, SchoolAssets } from '../services/dataService';
 import { printSummonLetter } from '../services/printService';
 import html2canvas from 'html2canvas';
@@ -17,6 +17,7 @@ const SummonPage: React.FC = () => {
 
   // Form State
   const [summonDate, setSummonDate] = useState(new Date().toISOString().split('T')[0]);
+  const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]); // تاريخ الإصدار
   const [summonTime, setSummonTime] = useState('09:00');
   const [reasonType, setReasonType] = useState('absence'); // absence, truant, behavior, other
   const [customReason, setCustomReason] = useState('');
@@ -27,17 +28,21 @@ const SummonPage: React.FC = () => {
   const [showAssetsSettings, setShowAssetsSettings] = useState(false);
   const [assets, setAssets] = useState<SchoolAssets>({});
 
-  // Reference for PDF Capture
+  // Reference for PDF generation
   const letterRef = useRef<HTMLDivElement>(null);
 
   // Get School Name, District & Assets
   useEffect(() => {
-    const settings = getSchoolSettings();
-    if (settings) {
-        if (settings.name) setSchoolName(settings.name);
-        if (settings.district) setDistrictName(settings.district);
-    }
-    setAssets(getSchoolAssets());
+    const fetchData = async () => {
+        const settings = await getSchoolSettings();
+        if (settings) {
+            if (settings.name) setSchoolName(settings.name);
+            if (settings.district) setDistrictName(settings.district);
+        }
+        const savedAssets = await getSchoolAssets();
+        setAssets(savedAssets);
+    };
+    fetchData();
   }, []);
 
   // Sync Classes
@@ -83,20 +88,20 @@ const SummonPage: React.FC = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const reader = new FileReader();
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
         const base64 = reader.result as string;
         const newAssets = { ...assets, [key]: base64 };
         setAssets(newAssets);
-        saveSchoolAssets(newAssets);
+        await saveSchoolAssets(newAssets);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const clearAsset = (key: keyof SchoolAssets) => {
+  const clearAsset = async (key: keyof SchoolAssets) => {
     const newAssets = { ...assets, [key]: undefined };
     setAssets(newAssets);
-    saveSchoolAssets(newAssets);
+    await saveSchoolAssets(newAssets);
   };
 
   const handlePrint = () => {
@@ -105,6 +110,9 @@ const SummonPage: React.FC = () => {
     
     const gradeName = grades.find(g => g.id === selectedGrade)?.name || '';
     const className = classes.find(c => c.id === selectedClass)?.name || '';
+
+    // Format Issue Date
+    const formattedIssueDate = new Date(issueDate).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'numeric', day: 'numeric' });
 
     printSummonLetter(
         schoolName,
@@ -115,6 +123,7 @@ const SummonPage: React.FC = () => {
         summonDate,
         summonTime,
         getReasonText(),
+        formattedIssueDate,
         assets
     );
   };
@@ -186,6 +195,7 @@ const SummonPage: React.FC = () => {
   const selectedStudentName = availableStudents.find(s=>s.id === selectedStudentId)?.name || '....................';
   const selectedGradeName = grades.find(g => g.id === selectedGrade)?.name || '.....';
   const selectedClassName = classes.find(c => c.id === selectedClass)?.name || '.....';
+  const formattedIssueDate = new Date(issueDate).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'numeric', day: 'numeric' });
 
   const isFormValid = selectedStudentId && (reasonType !== 'other' || customReason);
 
@@ -255,9 +265,18 @@ const SummonPage: React.FC = () => {
                 <CalendarClock size={18} className="text-blue-600" />
                 تفاصيل الاستدعاء
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-600">تاريخ الحضور</label>
+                    <label className="text-xs font-bold text-slate-600">تاريخ إصدار الخطاب</label>
+                    <input 
+                        type="date" 
+                        value={issueDate}
+                        onChange={(e) => setIssueDate(e.target.value)}
+                        className="form-input text-sm text-center bg-blue-50 border-blue-200"
+                    />
+                </div>
+                 <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-600">تاريخ الحضور المطلوب</label>
                     <input 
                         type="date" 
                         value={summonDate}
@@ -266,7 +285,7 @@ const SummonPage: React.FC = () => {
                     />
                 </div>
                 <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-600">الوقت</label>
+                    <label className="text-xs font-bold text-slate-600">وقت الحضور</label>
                     <input 
                         type="time" 
                         value={summonTime}
@@ -383,8 +402,6 @@ const SummonPage: React.FC = () => {
 
       {/* 
           PREVIEW & RENDER COMPONENT 
-          This is always in the DOM but hidden off-screen unless modal is open 
-          to allow html2canvas to work without opening the modal first.
       */}
       <div 
         className={`
@@ -407,21 +424,6 @@ const SummonPage: React.FC = () => {
 
              {/* Scrollable Preview Area */}
              <div className="flex-1 overflow-auto p-8 bg-gray-200 flex justify-center">
-                 {/* The actual A4 Paper div. 
-                     If showPreview is false, we technically need this rendered for PDF generation.
-                     However, simpler approach: We duplicate the render logic inside a hidden div on the main page OR
-                     Use this modal as the only source and manipulate visibility classes.
-                     
-                     FIX: We will render the A4 paper here. When showPreview is false, the parent modal is hidden.
-                     But html2canvas cannot capture hidden elements (display:none or visibility:hidden).
-                     So we need a separate "Hidden Render" strategy or handle it differently.
-                 */}
-                  
-                 {/* 
-                    Strategy:
-                    This div is the visual preview.
-                    Below outside this modal, there is another div used for PDF generation.
-                 */}
                  <div className="bg-white shadow-lg w-[210mm] min-h-[297mm] p-[15mm] text-black font-serif origin-top transform scale-90 md:scale-100">
                      <LetterContent 
                         schoolName={schoolName}
@@ -433,6 +435,7 @@ const SummonPage: React.FC = () => {
                         reason={getReasonText()}
                         date={summonDate}
                         time={summonTime}
+                        issueDate={formattedIssueDate}
                      />
                  </div>
              </div>
@@ -447,8 +450,6 @@ const SummonPage: React.FC = () => {
 
       {/* 
          HIDDEN RENDER FOR PDF GENERATION 
-         This div is positioned off-screen so it's technically "visible" to the browser renderer
-         allowing html2canvas to capture it without opening the modal.
       */}
       <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
         <div ref={letterRef} className="w-[210mm] min-h-[297mm] bg-white p-[15mm] text-black font-serif">
@@ -462,6 +463,7 @@ const SummonPage: React.FC = () => {
                 reason={getReasonText()}
                 date={summonDate}
                 time={summonTime}
+                issueDate={formattedIssueDate}
              />
         </div>
       </div>
@@ -470,7 +472,7 @@ const SummonPage: React.FC = () => {
   );
 };
 
-// Reusable Letter Content Component to avoid duplication
+// Reusable Letter Content Component
 const LetterContent: React.FC<{
     schoolName: string;
     districtName: string;
@@ -481,28 +483,18 @@ const LetterContent: React.FC<{
     reason: string;
     date: string;
     time: string;
-}> = ({ schoolName, districtName, assets, studentName, gradeName, className, reason, date, time }) => {
+    issueDate: string;
+}> = ({ schoolName, districtName, assets, studentName, gradeName, className, reason, date, time, issueDate }) => {
     return (
-        <div className="border-[3px] border-double border-black p-8 h-full flex flex-col relative justify-between">
+        <div className="border-[3px] border-double border-black p-10 h-full flex flex-col relative justify-between">
             {/* Header Section */}
             <div className="text-center space-y-2 mb-8">
                 <div className="flex justify-center mb-4 h-24 relative">
                         {assets.headerLogo ? (
                             <img src={assets.headerLogo} alt="Logo" className="h-full w-auto object-contain" />
                         ) : (
-                            <img 
-                            src="/assets/logo.png" 
-                            alt="Logo" 
-                            className="h-full w-auto object-contain grayscale opacity-80" 
-                            onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                                document.getElementById('fallback-logo-box-render')?.classList.remove('hidden');
-                            }} 
-                        />
+                            <img src="/assets/logo.png" alt="Logo" className="h-full w-auto object-contain" />
                         )}
-                        <div id="fallback-logo-box-render" className={`w-24 h-24 border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-xs font-bold rounded-lg absolute top-0 left-1/2 transform -translate-x-1/2 ${assets.headerLogo ? 'hidden' : 'hidden'}`}>
-                        شعار الوزارة
-                        </div>
                 </div>
                 <h2 className="font-bold text-lg leading-tight">سلطنة عُمان</h2>
                 <h2 className="font-bold text-lg leading-tight">وزارة التربية والتعليم</h2>
@@ -511,27 +503,44 @@ const LetterContent: React.FC<{
             </div>
 
             {/* Letter Body */}
-            <div className="flex-1 text-right space-y-8 leading-loose text-justify text-[16px]">
+            <div className="flex-1 text-right space-y-6 text-[18px] leading-relaxed">
                 
-                <div className="flex flex-wrap justify-between gap-4 font-bold border-b border-black pb-4">
-                    <span>الفاضل ولي أمر الطالب : ( {studentName} )</span>
-                    <span>المقيد بالصف : ( {gradeName} / {className} )</span>
+                {/* 
+                    UPDATED HEADER INFO BLOCK 
+                    Added Issue Date to the left side of the second line
+                */}
+                <div className="border-b border-black pb-4 mb-4">
+                    <div className="font-bold mb-3 flex justify-between">
+                        <span>الفاضل ولي أمر الطالب : ( {studentName} )</span>
+                    </div>
+                    <div className="flex justify-between items-center font-bold">
+                        <span>المقيد بالصف : ( {gradeName} / {className} )</span>
+                        <span className="text-base font-normal">تحريراً في: {issueDate}</span>
+                    </div>
                 </div>
 
-                <div className="text-center font-bold text-2xl my-8 underline offset-4">
+                <div className="text-center font-bold text-2xl my-8 underline offset-8">
                     السلام علیکم ورحمة الله وبرکاته
                 </div>
                 
-                <p className="indent-16 leading-[2.5]">
-                    نظراً لأهمية التعاون بين المدرسة وولي الأمر فيما يخدم مصلحة الطالب، ويحقق له النجاح، ونأمل منكم الحضور إلى المدرسة لبحث بعض الأمور المتعلقة بابنكم:
-                    <br/>
-                    ( <span className="font-bold underline text-lg mx-2">{reason || '...........................................'}</span> ) 
-                    <br/>
-                    ولنا في حضوركم أمل بهدف التعاون بين البيت والمدرسة لتحقيق الرسالة التربوية الهادفة التي نسعى إليها، وتأمل المدرسة حضوركم في أقرب فرصة ممكنة لديكم.
-                </p>
+                <div style={{ textAlign: 'justify', textAlignLast: 'right' }}>
+                    <p className="mb-4">
+                        نظراً لأهمية التعاون بين المدرسة وولي الأمر فيما يخدم مصلحة الطالب، ويحقق له النجاح، نأمل منكم الحضور إلى المدرسة لبحث بعض الأمور المتعلقة بابنكم:
+                    </p>
+                    
+                    <div className="my-6 text-center">
+                        <span className="font-bold text-xl px-4 py-2 border-y-2 border-gray-100 inline-block bg-gray-50 rounded">
+                           ( {reason || '...........................................'} )
+                        </span>
+                    </div>
 
-                <div className="mt-8 border p-4 text-center bg-gray-50 border-gray-300">
-                        <p className="font-bold text-lg">
+                    <p>
+                        ولنا في حضوركم أمل بهدف التعاون بين البيت والمدرسة لتحقيق الرسالة التربوية الهادفة التي نسعى إليها، وتأمل المدرسة حضوركم في أقرب فرصة ممكنة لديكم.
+                    </p>
+                </div>
+
+                <div className="mt-8 border p-4 text-center bg-gray-50 border-gray-300 rounded">
+                    <p className="font-bold text-lg">
                         * الموعد المقترح: يوم <span className="underline mx-2">{date}</span> الساعة <span className="underline mx-2">{time}</span>.
                     </p>
                 </div>

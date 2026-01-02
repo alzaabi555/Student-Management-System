@@ -41,10 +41,13 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
 
   // --- Common Effects ---
   useEffect(() => {
-    const settings = getSchoolSettings();
-    if (settings?.name) {
-        setSchoolName(settings.name);
-    }
+    const fetchSettings = async () => {
+        const settings = await getSchoolSettings();
+        if (settings?.name) {
+            setSchoolName(settings.name);
+        }
+    };
+    fetchSettings();
   }, []);
 
   // --- Deep Link Effect (Handle Initial Student) ---
