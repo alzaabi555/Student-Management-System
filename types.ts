@@ -1,8 +1,9 @@
+
 export enum AttendanceStatus {
   PRESENT = 'hader',
   ABSENT = 'ghaeb',
-  TRUANT = 'motasareb', // Skipping class (تسرب من حصة)
-  ESCAPE = 'horob'      // Escaping school (هروب من المدرسة)
+  TRUANT = 'motasareb', // تسرب من حصة
+  ESCAPE = 'horob'      // تسرب من المدرسة
 }
 
 export interface Student {
@@ -28,7 +29,8 @@ export interface AttendanceRecord {
   date: string; // ISO Date string YYYY-MM-DD
   studentId: string;
   status: AttendanceStatus;
-  period?: number; // رقم الحصة في حال التسرب
+  period?: number; // رقم الحصة في حال التسرب من حصة
+  note?: string;   // ملاحظات (وصف الحالة) في حال التسرب من المدرسة
   timestamp: number;
 }
 

@@ -10,33 +10,44 @@ import SummonPage from './components/SummonPage';
 import WelcomeSetup from './components/WelcomeSetup';
 import UserGuide from './components/UserGuide';
 import AboutApp from './components/AboutApp';
-import { getSchoolSettings } from './services/dataService';
+import { getSchoolSettings, initializeData } from './services/dataService';
+import { Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [page, setPage] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isSetupComplete, setIsSetupComplete] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [schoolInfo, setSchoolInfo] = useState<{name: string, district: string} | null>(null);
   
   // State to pass selected student to Reports page
   const [reportStudentId, setReportStudentId] = useState<string | null>(null);
 
-  const checkSetup = () => {
-    const settings = getSchoolSettings();
+  const initApp = async () => {
+    setIsLoading(true);
+    await initializeData(); // Initialize DB and Load Data to RAM
+    
+    const settings = await getSchoolSettings();
     if (settings && settings.isSetup) {
       setIsSetupComplete(true);
       setSchoolInfo(settings);
     } else {
       setIsSetupComplete(false);
     }
+    setIsLoading(false);
   };
 
   useEffect(() => {
-    checkSetup();
+    initApp();
   }, []);
 
-  const handleSetupComplete = () => {
-    checkSetup();
+  const handleSetupComplete = async () => {
+     // Re-fetch settings after setup
+     const settings = await getSchoolSettings();
+     if (settings) {
+        setSchoolInfo(settings);
+        setIsSetupComplete(true);
+     }
   };
 
   // Handler to open report for a specific student
@@ -44,6 +55,16 @@ const App: React.FC = () => {
     setReportStudentId(studentId);
     setPage('reports');
   };
+
+  if (isLoading) {
+    return (
+        <div className="flex flex-col items-center justify-center h-screen bg-gray-100 text-slate-600 gap-4">
+            <Loader2 size={48} className="animate-spin text-blue-600" />
+            <p className="font-bold text-lg">جاري تحميل البيانات...</p>
+            <p className="text-sm text-gray-400">يتم تهيئة قاعدة البيانات المحلية لضمان الأداء</p>
+        </div>
+    );
+  }
 
   if (!isSetupComplete) {
     return <WelcomeSetup onComplete={handleSetupComplete} />;

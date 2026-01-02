@@ -53,7 +53,7 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "public/assets/icon.ico",
+      "icon": "public/assets/icon.png",
       "legalTrademarks": "Madrasati Systems"
     },
     "nsis": {
