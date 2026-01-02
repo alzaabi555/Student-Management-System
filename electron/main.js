@@ -1,3 +1,4 @@
+
 import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -6,9 +7,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function createWindow() {
+  // استخدام icon.png بدلاً من icon.ico لضمان التوافق مع ملفات المشروع المرفقة
   const iconPath = process.env.NODE_ENV === 'development'
-    ? path.join(__dirname, '../public/assets/icon.ico')
-    : path.join(__dirname, '../dist/assets/icon.ico');
+    ? path.join(__dirname, '../public/assets/icon.png')
+    : path.join(__dirname, '../dist/assets/icon.png');
 
   const win = new BrowserWindow({
     width: 1280,
@@ -22,7 +24,7 @@ function createWindow() {
       webSecurity: true,
       preload: path.join(__dirname, 'preload.js')
     },
-    icon: iconPath
+    icon: iconPath // تعيين الأيقونة
   });
 
   win.setMenuBarVisibility(false);
