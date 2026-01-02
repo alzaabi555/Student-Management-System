@@ -5,23 +5,26 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Removed ipcMain.on('print-page') as we use window.print() in renderer for better UI.
-
 function createWindow() {
+  const iconPath = process.env.NODE_ENV === 'development'
+    ? path.join(__dirname, '../public/assets/icon.ico')
+    : path.join(__dirname, '../dist/assets/icon.ico');
+
   const win = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: 1280,
+    height: 850,
+    show: false, // Don't show immediately to prevent white flash
+    backgroundColor: '#f3f3f3', // Matches the app background color
+    title: 'نظام مدرستي',
     webPreferences: {
-      nodeIntegration: false, // Security best practice
-      contextIsolation: true, // Required for contextBridge
+      nodeIntegration: false,
+      contextIsolation: true,
       webSecurity: true,
-      preload: path.join(__dirname, 'preload.js') // ربط ملف الجسر
+      preload: path.join(__dirname, 'preload.js')
     },
-    // استخدام أيقونة png للنافذة
-    icon: path.join(__dirname, '../public/assets/icon.png')
+    icon: iconPath
   });
 
-  // Remove menu bar for cleaner app look
   win.setMenuBarVisibility(false);
 
   // Load the built app
@@ -31,7 +34,13 @@ function createWindow() {
     win.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
-  // Open external links in default browser (fallback)
+  // Smooth Opening: Show window only when content is ready
+  win.once('ready-to-show', () => {
+    win.show();
+    win.focus();
+  });
+
+  // Open external links in default browser
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
