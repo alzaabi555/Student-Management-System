@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -13,73 +14,86 @@ import { getSchoolSettings } from './services/dataService';
 
 const App: React.FC = () => {
   const [page, setPage] = useState('dashboard');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Default open for Desktop
-  const [isSetup, setIsSetup] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [schoolInfo, setSchoolInfo] = useState<{name: string, district: string} | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   
-  useEffect(() => {
+  // State to pass selected student to Reports page
+  const [reportStudentId, setReportStudentId] = useState<string | null>(null);
+
+  const checkSetup = () => {
     const settings = getSchoolSettings();
-    
     if (settings && settings.isSetup) {
-        setSchoolInfo(settings);
-        setIsSetup(true);
+      setIsSetupComplete(true);
+      setSchoolInfo(settings);
     } else {
-        setIsSetup(false);
+      setIsSetupComplete(false);
     }
-    
-    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    checkSetup();
   }, []);
 
   const handleSetupComplete = () => {
-    const settings = getSchoolSettings();
-    setSchoolInfo(settings);
-    setIsSetup(true);
+    checkSetup();
   };
 
+  // Handler to open report for a specific student
+  const handleOpenStudentReport = (studentId: string) => {
+    setReportStudentId(studentId);
+    setPage('reports');
+  };
+
+  if (!isSetupComplete) {
+    return <WelcomeSetup onComplete={handleSetupComplete} />;
+  }
+
   const renderPage = () => {
-    switch(page) {
+    switch (page) {
       case 'dashboard': return <Dashboard />;
       case 'attendance': return <AttendanceSheet onNavigate={setPage} />;
-      case 'students': return <StudentsManager onNavigate={setPage} />;
-      case 'reports': return <Reports />;
-      case 'summons': return <SummonPage />;
+      case 'students': return <StudentsManager onNavigate={setPage} onOpenReport={handleOpenStudentReport} />;
       case 'structure': return <SchoolManager />;
+      case 'reports': return <Reports initialStudentId={reportStudentId} onClearInitial={() => setReportStudentId(null)} />;
+      case 'summons': return <SummonPage />;
       case 'guide': return <UserGuide />;
       case 'about': return <AboutApp />;
       default: return <Dashboard />;
     }
   };
 
-  if (isLoading) return null;
-
-  if (!isSetup) {
-    return <WelcomeSetup onComplete={handleSetupComplete} />;
-  }
-
   return (
-    <div className="flex h-screen overflow-hidden bg-winBg selection:bg-primary selection:text-white direction-rtl">
-      <Sidebar 
-        currentPage={page} 
-        setPage={setPage} 
-        isOpen={isSidebarOpen}
-        setIsOpen={setIsSidebarOpen}
-        schoolInfo={schoolInfo}
-      />
-      
-      {/* 
-        Windows 11 Layout Style:
-        The main content is a 'Surface' separate from the Navigation Pane.
-        We add padding around the main area so the background shows through, creating a 'cut' effect.
-      */}
-      <main className="flex-1 overflow-hidden w-full transition-all duration-300 p-3 bg-winBg relative">
-        <div className="h-full w-full rounded-2xl bg-white/50 border border-white/60 shadow-[0_0_15px_rgba(0,0,0,0.03)] backdrop-blur-sm overflow-x-hidden overflow-y-auto relative">
-             {/* This inner div acts as the 'Page' surface */}
-             <div className="min-h-full">
-                {renderPage()}
-             </div>
-        </div>
-      </main>
+    <div className="flex h-screen overflow-hidden bg-gray-100 text-slate-900 font-sans">
+      {/* Sidebar - Fixed width */}
+      <div className={`flex-shrink-0 transition-all duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-0 overflow-hidden'}`}>
+        <Sidebar 
+          currentPage={page} 
+          setPage={setPage} 
+          isOpen={isSidebarOpen} 
+          setIsOpen={setIsSidebarOpen}
+          schoolInfo={schoolInfo}
+        />
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
+        
+        {/* Toggle Button (Visible only when sidebar closed or mobile) */}
+        {!isSidebarOpen && (
+             <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="absolute top-4 right-4 z-50 p-2 bg-white rounded-md shadow border border-gray-200 hover:bg-gray-50 text-slate-600"
+             >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+             </button>
+        )}
+
+        {/* Content Scrollable Area */}
+        <main className="flex-1 overflow-auto p-4 md:p-6">
+           {renderPage()}
+        </main>
+      </div>
     </div>
   );
 };
