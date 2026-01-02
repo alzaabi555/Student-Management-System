@@ -1,3 +1,4 @@
+
 import { Student, Grade, SchoolClass, AttendanceStatus, AttendanceRecord } from '../types';
 
 // --- Local Storage Keys ---
@@ -136,6 +137,17 @@ export const addStudent = (student: Omit<Student, 'id'>) => {
   students.unshift(newStudent); // Add to the beginning
   saveData(KEYS.STUDENTS, students);
   return newStudent;
+};
+
+// Helper to update a student
+export const updateStudent = (id: string, updates: Partial<Student>) => {
+  const index = students.findIndex(s => s.id === id);
+  if (index > -1) {
+    students[index] = { ...students[index], ...updates };
+    saveData(KEYS.STUDENTS, students);
+    return students[index];
+  }
+  return null;
 };
 
 // Helper to add multiple students (Optimized for Bulk)

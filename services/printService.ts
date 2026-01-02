@@ -1,3 +1,4 @@
+
 import { AttendanceStatus, AttendanceRecord, Student } from '../types';
 import { StudentPeriodStats, SchoolAssets } from './dataService';
 
@@ -95,7 +96,7 @@ export const printAttendanceSheet = (
        statusText = 'تسرب';
        rowClass = 'status-truant';
     } else if (status === AttendanceStatus.ESCAPE) {
-       statusText = 'هروب';
+       statusText = 'تسرب';
        rowClass = 'status-truant';
     }
     
@@ -191,7 +192,7 @@ export const printClassPeriodReport = (
           <th>اسم الطالب</th>
           <th>عدد أيام الغياب</th>
           <th>تسرب (حصة)</th>
-          <th>هروب</th>
+          <th>تسرب</th>
           <th>الإجمالي</th>
         </tr>
       </thead>
@@ -257,7 +258,7 @@ export const printStudentReport = (
        statusText = 'تسرب من حصة';
        rowClass = 'status-truant';
     } else if (record.status === AttendanceStatus.ESCAPE) {
-       statusText = 'هروب من المدرسة';
+       statusText = 'تسرب من المدرسة';
        rowClass = 'status-truant';
     }
     
@@ -282,7 +283,7 @@ export const printStudentReport = (
     </div>
     
     <div style="margin: 20px 0;">
-      <h3>سجل المخالفات (غياب / تسرب / هروب):</h3>
+      <h3>سجل المخالفات (غياب / تسرب):</h3>
     </div>
 
     <table>
