@@ -1,9 +1,11 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Removed ipcMain.on('print-page') as we use window.print() in renderer for better UI.
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -15,7 +17,7 @@ function createWindow() {
       webSecurity: true,
       preload: path.join(__dirname, 'preload.js') // ربط ملف الجسر
     },
-    // استخدام أيقونة png للنافذة، المسار يشير الآن إلى public/assets
+    // استخدام أيقونة png للنافذة
     icon: path.join(__dirname, '../public/assets/icon.png')
   });
 
