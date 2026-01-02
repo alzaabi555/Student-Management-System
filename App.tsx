@@ -10,14 +10,19 @@ import SummonPage from './components/SummonPage';
 import WelcomeSetup from './components/WelcomeSetup';
 import UserGuide from './components/UserGuide';
 import AboutApp from './components/AboutApp';
+import ActivationPage from './components/ActivationPage';
 import { getSchoolSettings, initializeData } from './services/dataService';
+import { isAppActivated } from './services/licenseService';
 import { Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [page, setPage] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isSetupComplete, setIsSetupComplete] = useState(false);
+  
+  // App States
   const [isLoading, setIsLoading] = useState(true);
+  const [isActivated, setIsActivated] = useState(false);
+  const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [schoolInfo, setSchoolInfo] = useState<{name: string, district: string} | null>(null);
   
   // State to pass selected student to Reports page
@@ -25,21 +30,41 @@ const App: React.FC = () => {
 
   const initApp = async () => {
     setIsLoading(true);
-    await initializeData(); // Initialize DB and Load Data to RAM
     
-    const settings = await getSchoolSettings();
-    if (settings && settings.isSetup) {
-      setIsSetupComplete(true);
-      setSchoolInfo(settings);
-    } else {
-      setIsSetupComplete(false);
+    // 1. Check License First
+    const activated = isAppActivated();
+    setIsActivated(activated);
+
+    if (activated) {
+        // 2. Initialize Data only if activated
+        await initializeData(); 
+        const settings = await getSchoolSettings();
+        if (settings && settings.isSetup) {
+          setIsSetupComplete(true);
+          setSchoolInfo(settings);
+        } else {
+          setIsSetupComplete(false);
+        }
     }
+    
     setIsLoading(false);
   };
 
   useEffect(() => {
     initApp();
   }, []);
+
+  const handleActivationSuccess = async () => {
+      setIsLoading(true);
+      setIsActivated(true);
+      await initializeData();
+      const settings = await getSchoolSettings();
+      if (settings && settings.isSetup) {
+        setIsSetupComplete(true);
+        setSchoolInfo(settings);
+      }
+      setIsLoading(false);
+  };
 
   const handleSetupComplete = async () => {
      // Re-fetch settings after setup
@@ -60,12 +85,17 @@ const App: React.FC = () => {
     return (
         <div className="flex flex-col items-center justify-center h-screen bg-gray-100 text-slate-600 gap-4">
             <Loader2 size={48} className="animate-spin text-blue-600" />
-            <p className="font-bold text-lg">جاري تحميل البيانات...</p>
-            <p className="text-sm text-gray-400">يتم تهيئة قاعدة البيانات المحلية لضمان الأداء</p>
+            <p className="font-bold text-lg">جاري تحميل النظام...</p>
         </div>
     );
   }
 
+  // --- Step 1: Activation Check ---
+  if (!isActivated) {
+      return <ActivationPage onSuccess={handleActivationSuccess} />;
+  }
+
+  // --- Step 2: Setup Check ---
   if (!isSetupComplete) {
     return <WelcomeSetup onComplete={handleSetupComplete} />;
   }
