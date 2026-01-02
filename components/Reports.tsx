@@ -1,12 +1,21 @@
-import React, { useState } from 'react';
-import { Sparkles, FileDown, RefreshCw } from 'lucide-react';
-import { getDailyStats } from '../services/dataService';
+import React, { useState, useEffect } from 'react';
+import { Sparkles, RefreshCw, Share2, Printer } from 'lucide-react';
+import { getDailyStats, getSchoolSettings } from '../services/dataService';
 import { generateDailyReport } from '../services/geminiService';
+import { printDailyReport } from '../services/printService';
 
 const Reports: React.FC = () => {
   const [report, setReport] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [schoolName, setSchoolName] = useState('مدرستي');
+
+  useEffect(() => {
+    const settings = getSchoolSettings();
+    if (settings?.name) {
+        setSchoolName(settings.name);
+    }
+  }, []);
 
   const handleGenerateReport = async () => {
     setLoading(true);
@@ -16,8 +25,29 @@ const Reports: React.FC = () => {
     setLoading(false);
   };
 
+  const handleShareReport = async () => {
+    if (!report) return;
+    const url = `whatsapp://send?text=${encodeURIComponent(report)}`;
+    
+    if (window.electron && window.electron.openExternal) {
+       try {
+         await window.electron.openExternal(url);
+       } catch (err) {
+         console.error('Failed to open WhatsApp:', err);
+         alert('تعذر فتح واتساب. تأكد من تثبيت التطبيق.');
+       }
+    } else {
+       window.open(url, '_blank');
+    }
+  };
+
+  const handlePrint = () => {
+    if (!report) return;
+    printDailyReport(schoolName, date, report);
+  };
+
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6 max-w-4xl mx-auto relative">
       <header className="mb-8 text-center">
         <h2 className="text-3xl font-bold text-gray-800 mb-2">التقارير الذكية</h2>
         <p className="text-gray-500">تحليل بيانات الحضور باستخدام الذكاء الاصطناعي</p>
@@ -61,9 +91,19 @@ const Reports: React.FC = () => {
               </div>
               
               <div className="mt-6 flex gap-3 justify-end">
-                <button className="flex items-center gap-2 text-gray-600 hover:bg-gray-100 px-4 py-2 rounded-lg transition-colors text-sm font-medium">
-                  <FileDown size={18} />
-                  نسخ النص
+                <button 
+                  onClick={handleShareReport}
+                  className="flex items-center gap-2 text-green-600 bg-green-50 hover:bg-green-100 px-4 py-2 rounded-lg transition-colors text-sm font-bold"
+                >
+                  <Share2 size={18} />
+                  مشاركة عبر واتساب
+                </button>
+                <button 
+                  onClick={handlePrint}
+                  className="flex items-center gap-2 text-gray-600 hover:bg-gray-100 px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                >
+                  <Printer size={18} />
+                  طباعة / حفظ PDF
                 </button>
               </div>
             </div>

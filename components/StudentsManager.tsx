@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Search, Plus, Trash2, User, Phone, Save, X, Layers, ArrowRight, Upload, FileSpreadsheet, Download, Filter } from 'lucide-react';
+import { Search, Plus, Trash2, User, Phone, Save, X, Layers, ArrowRight, Upload, FileSpreadsheet, Download, Filter, Share2 } from 'lucide-react';
 import { students, grades, classes, addStudent, deleteStudent, addStudentsBulk } from '../services/dataService';
 import { read, utils, write } from 'xlsx';
 import { TableVirtuoso } from 'react-virtuoso';
+import { Student } from '../types';
 
 interface StudentsManagerProps {
   onNavigate: (page: string) => void;
@@ -179,6 +180,32 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
     }
   };
 
+  // --- WhatsApp Nuclear Solution ---
+  const sendWhatsApp = async (student: Student) => {
+    if (!student.parentPhone) {
+        alert('لا يوجد رقم هاتف مسجل لهذا الطالب');
+        return;
+    }
+
+    const message = `السلام عليكم ولي أمر الطالب/ة ${student.name}. نود التواصل معكم من إدارة المدرسة.`;
+    
+    // استخدام بروتوكول التطبيق whatsapp://
+    const url = `whatsapp://send?phone=968${student.parentPhone}&text=${encodeURIComponent(message)}`;
+    
+    // الحل النووي: استخدام IPC Bridge
+    if (window.electron && window.electron.openExternal) {
+       try {
+         await window.electron.openExternal(url);
+       } catch (err) {
+         console.error('Failed to open WhatsApp:', err);
+         alert('تعذر فتح واتساب. تأكد من تثبيت التطبيق.');
+       }
+    } else {
+       // Fallback
+       window.open(url, '_blank');
+    }
+  };
+
   // --- Render ---
 
   if (grades.length === 0) {
@@ -298,7 +325,14 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
                                 <Phone size={12} className="md:w-3.5 md:h-3.5" />
                             </div>
                         </td>
-                        <td className="p-3 md:p-4 text-center border-b border-gray-50">
+                        <td className="p-3 md:p-4 text-center border-b border-gray-50 flex justify-center gap-2">
+                            <button 
+                                onClick={() => sendWhatsApp(student)}
+                                className="p-1.5 md:p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                title="مراسلة ولي الأمر"
+                            >
+                                <Share2 size={16} className="md:w-5 md:h-5" />
+                            </button>
                             <button 
                                 onClick={() => handleDeleteStudent(student.id)}
                                 className="p-1.5 md:p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
