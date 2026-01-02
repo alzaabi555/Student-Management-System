@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { LayoutDashboard, Users, School, UserPlus, Layers, BookOpen, Info, FileText, FileWarning, MapPin } from 'lucide-react';
+import { LayoutDashboard, Users, School, UserPlus, Layers, BookOpen, Info, FileText, FileWarning, ChevronLeft } from 'lucide-react';
 
 interface SidebarProps {
   currentPage: string;
@@ -10,74 +11,111 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentPage, setPage, schoolInfo }) => {
-  // Logic order preserved: Structure -> Students -> Attendance
-  const menuItems = [
-    { id: 'dashboard', label: 'لوحة المعلومات', icon: <LayoutDashboard size={22} /> },
-    { id: 'structure', label: 'الصفوف والفصول', icon: <Layers size={22} /> },
-    { id: 'students', label: 'إدارة الطلاب', icon: <UserPlus size={22} /> },
-    { id: 'attendance', label: 'تسجيل الحضور', icon: <Users size={22} /> },
-    { id: 'reports', label: 'التقارير', icon: <FileText size={22} /> },
-    { id: 'summons', label: 'الاستدعاءات', icon: <FileWarning size={22} /> },
-    { id: 'guide', label: 'دليل الاستخدام', icon: <BookOpen size={22} /> },
-    { id: 'about', label: 'حول التطبيق', icon: <Info size={22} /> },
+  
+  // Grouping menu items for better organization
+  const menuGroups = [
+    {
+      title: 'عام',
+      items: [
+        { id: 'dashboard', label: 'الرئيسية', icon: <LayoutDashboard size={22} /> },
+      ]
+    },
+    {
+      title: 'الإدارة المدرسية',
+      items: [
+        { id: 'structure', label: 'الهيكل المدرسي', icon: <Layers size={22} /> },
+        { id: 'students', label: 'شؤون الطلاب', icon: <UserPlus size={22} /> },
+        { id: 'attendance', label: 'سجل الحضور', icon: <Users size={22} /> },
+      ]
+    },
+    {
+      title: 'المخرجات',
+      items: [
+        { id: 'reports', label: 'التقارير والإحصاء', icon: <FileText size={22} /> },
+        { id: 'summons', label: 'الاستدعاءات', icon: <FileWarning size={22} /> },
+      ]
+    },
+    {
+      title: 'المساعدة',
+      items: [
+        { id: 'guide', label: 'دليل الاستخدام', icon: <BookOpen size={22} /> },
+        { id: 'about', label: 'حول النظام', icon: <Info size={22} /> },
+      ]
+    }
   ];
 
   return (
-    <aside className="w-[300px] bg-winBg/50 flex-shrink-0 flex flex-col h-full select-none pt-6 pb-4 px-3 print:hidden backdrop-blur-xl border-l border-gray-200/60 shadow-[1px_0_0_0_rgba(255,255,255,0.5)] z-20 transition-all duration-300">
-        
-        {/* Logo & School Identity Area - Enhanced */}
-        <div className="px-3 mb-8 flex items-center gap-4">
-          <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-900/10 shrink-0">
-            <School size={24} />
-          </div>
-          <div className="flex flex-col justify-center overflow-hidden">
-            <h1 className="font-bold text-lg text-slate-900 leading-tight truncate tracking-tight">
-              {schoolInfo ? schoolInfo.name : 'مدرستي'}
-            </h1>
-            <div className="flex items-center gap-1 text-xs font-medium text-gray-500 mt-1">
-              {schoolInfo?.district && <MapPin size={10} className="text-primary/70" />}
-              <span className="truncate">{schoolInfo ? schoolInfo.district : 'النظام الذكي'}</span>
+    <div className="flex flex-col h-full bg-white border-l border-gray-300 text-gray-800 shadow-xl z-20">
+        {/* Brand */}
+        <div className="h-20 flex items-center px-5 border-b border-gray-200 bg-gray-50/50">
+          <div className="flex items-center gap-3 w-full">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-blue-200">
+              <School size={22} />
+            </div>
+            <div className="overflow-hidden">
+              <h1 className="font-extrabold text-base text-gray-900 truncate leading-tight">
+                {schoolInfo ? schoolInfo.name : 'مدرستي'}
+              </h1>
+              <span className="text-[11px] text-gray-500 block truncate font-medium mt-0.5">
+                {schoolInfo ? schoolInfo.district : 'لوحة التحكم'}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Navigation - Windows 11 Style (Spacious) */}
-        <nav className="space-y-1.5 flex-1 overflow-y-auto px-1 custom-scrollbar">
-          {menuItems.map((item) => {
-            const isActive = currentPage === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setPage(item.id)}
-                className={`
-                  w-full flex items-center gap-4 px-4 py-3 rounded-[6px] transition-all duration-200 group relative
-                  ${isActive 
-                    ? 'bg-white shadow-sm text-primary font-bold' 
-                    : 'text-slate-600 hover:bg-white/60 hover:text-slate-900'}
-                `}
-              >
-                {/* Win11 Active Indicator (Left Bar) - Slightly thicker */}
-                {isActive && (
-                    <div className="absolute left-0 top-2.5 bottom-2.5 w-[4px] bg-primary rounded-r-full shadow-[2px_0_8px_rgba(0,95,184,0.3)]"></div>
-                )}
-                
-                <span className={`transition-colors duration-200 ${isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-700'}`}>
-                  {item.icon}
-                </span>
-                <span className="text-[15px]">{item.label}</span>
-              </button>
-            );
-          })}
+        {/* Menu */}
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
+          {menuGroups.map((group, groupIndex) => (
+            <div key={groupIndex}>
+              {/* Group Title (Hidden for first group if desired, or styled subtly) */}
+              {group.title !== 'عام' && (
+                <h3 className="px-3 text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 mt-2">
+                  {group.title}
+                </h3>
+              )}
+              
+              <div className="space-y-1">
+                {group.items.map((item) => {
+                  const isActive = currentPage === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      id={`btn-nav-${item.id}`}
+                      onClick={() => setPage(item.id)}
+                      className={`
+                        w-full flex items-center gap-3 px-3 py-3.5 rounded-xl transition-all duration-200 group
+                        ${isActive 
+                          ? 'bg-blue-50 text-blue-700 font-bold shadow-sm ring-1 ring-blue-100' 
+                          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}
+                      `}
+                    >
+                      <span className={`transition-colors ${isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}`}>
+                        {item.icon}
+                      </span>
+                      <span className="text-sm font-medium">{item.label}</span>
+                      
+                      {/* Active Indicator Line */}
+                      {isActive && (
+                        <div className="mr-auto w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              {/* Separator Line (Don't show after last group) */}
+              {groupIndex < menuGroups.length - 1 && (
+                 <div className="mt-4 border-b border-gray-100 mx-2"></div>
+              )}
+            </div>
+          ))}
         </nav>
         
-        {/* Footer Area */}
-        <div className="mt-auto px-6 py-4">
-            <div className="pt-4 border-t border-gray-200/50 flex flex-col items-center text-center">
-                <span className="text-[10px] text-gray-400 font-medium">نظام مدرستي للإدارة الذكية</span>
-                <span className="text-[10px] text-gray-300 mt-0.5"> الإصدار 2.0.0</span>
-            </div>
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-200 bg-gray-50/80 text-center backdrop-blur-sm">
+            <p className="text-[10px] text-gray-400 font-medium font-mono">الإصدار 2.0.0</p>
         </div>
-    </aside>
+    </div>
   );
 };
 

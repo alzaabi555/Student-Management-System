@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { MailWarning, Printer, CalendarClock, User, Share2, Settings, Upload, Image as ImageIcon, Trash2, ChevronDown } from 'lucide-react';
+import { MailWarning, Printer, CalendarClock, User, Share2, Settings, Upload, Image as ImageIcon, Trash2, Eye, X, FileWarning, ChevronDown } from 'lucide-react';
 import { getSchoolSettings, grades, classes, students, saveSchoolAssets, getSchoolAssets, SchoolAssets } from '../services/dataService';
 import { printSummonLetter } from '../services/printService';
 import html2canvas from 'html2canvas';
@@ -20,6 +21,7 @@ const SummonPage: React.FC = () => {
   const [reasonType, setReasonType] = useState('absence'); // absence, truant, behavior, other
   const [customReason, setCustomReason] = useState('');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [showPreview, setShowPreview] = useState(false); // State for Modal Preview
   
   // Assets State (Signatures & Stamp)
   const [showAssetsSettings, setShowAssetsSettings] = useState(false);
@@ -106,7 +108,7 @@ const SummonPage: React.FC = () => {
 
     printSummonLetter(
         schoolName,
-        districtName, // تمرير المحافظة للترويسة
+        districtName,
         student.name,
         gradeName,
         className,
@@ -117,7 +119,6 @@ const SummonPage: React.FC = () => {
     );
   };
 
-  // --- LOGIC PRESERVED: WhatsApp + PDF Generation ---
   const handleSendWhatsApp = async () => {
     const student = students.find(s => s.id === selectedStudentId);
     if (!student || !student.parentPhone) {
@@ -125,17 +126,26 @@ const SummonPage: React.FC = () => {
         return;
     }
 
-    if (!letterRef.current) return;
+    // Ensure the letter is rendered (even if hidden)
+    if (!letterRef.current) {
+        alert('خطأ في تحميل المعاينة، يرجى فتح المعاينة أولاً');
+        return;
+    }
 
     try {
         setIsGeneratingPdf(true);
+
+        // Force a small delay to ensure rendering if hidden
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         // 1. Generate PDF from the preview element
         const canvas = await html2canvas(letterRef.current, {
             scale: 2, // High resolution
             useCORS: true,
             logging: false,
-            backgroundColor: '#ffffff'
+            backgroundColor: '#ffffff',
+            windowWidth: 794, // A4 Width in px (approx)
+            windowHeight: 1123 // A4 Height in px (approx)
         });
 
         const imgData = canvas.toDataURL('image/png');
@@ -180,307 +190,388 @@ const SummonPage: React.FC = () => {
   const isFormValid = selectedStudentId && (reasonType !== 'other' || customReason);
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto h-[calc(100vh-80px)] overflow-y-auto custom-scrollbar">
-      <header className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-900 mb-1 flex items-center gap-2">
-            <MailWarning className="text-amber-500" size={28} />
-            استدعاء ولي أمر
-        </h2>
-        <p className="text-gray-500 text-sm">إصدار خطابات استدعاء رسمية ومشاركتها عبر واتساب</p>
-      </header>
+    // Changed: Removed h-full, added w-full and pb-20 to ensure scrolling works and bottom content is accessible
+    <div className="flex flex-col w-full max-w-5xl mx-auto space-y-6 pb-20">
+      
+      {/* Header */}
+      <div className="flex items-center gap-4 pt-4 px-2">
+        <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 shadow-sm border border-blue-200">
+            <FileWarning size={28} />
+        </div>
+        <div>
+            <h2 className="text-2xl font-bold text-slate-800">استدعاء ولي أمر</h2>
+            <p className="text-gray-500 text-sm mt-1">إنشاء خطابات استدعاء رسمية ومشاركتها</p>
+        </div>
+      </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Left Column: Form Inputs */}
-        <div className="xl:col-span-1 space-y-6">
-            
-            {/* Student Selection Card */}
-            <div className="win-card p-5 animate-fadeIn">
-                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 text-sm border-b pb-2 border-gray-100">
-                    <User size={18} className="text-primary" />
-                    بيانات الطالب
-                </h3>
-                <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-600">الصف الدراسي</label>
-                            <div className="relative">
-                                <select 
-                                    value={selectedGrade}
-                                    onChange={(e) => setSelectedGrade(e.target.value)}
-                                    className="win-input w-full p-2.5 appearance-none outline-none text-sm"
-                                >
-                                    {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                                </select>
-                                <ChevronDown className="absolute left-3 top-3 text-gray-400 pointer-events-none" size={14} />
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-600">الفصل</label>
-                            <div className="relative">
-                                <select 
-                                    value={selectedClass}
-                                    onChange={(e) => setSelectedClass(e.target.value)}
-                                    disabled={availableClasses.length === 0}
-                                    className="win-input w-full p-2.5 appearance-none outline-none disabled:bg-gray-50 text-sm"
-                                >
-                                    {availableClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                                <ChevronDown className="absolute left-3 top-3 text-gray-400 pointer-events-none" size={14} />
-                            </div>
-                        </div>
-                    </div>
+      <div className="card p-6 md:p-8 animate-fadeIn space-y-8">
+        
+        {/* Section 1: Student Data */}
+        <div className="space-y-4">
+             <h3 className="font-bold text-slate-800 text-sm border-b pb-2 border-gray-100 flex items-center gap-2">
+                <User size={18} className="text-blue-600" />
+                بيانات الطالب
+             </h3>
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                 <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-600">الصف الدراسي</label>
+                    <select 
+                        value={selectedGrade}
+                        onChange={(e) => setSelectedGrade(e.target.value)}
+                        className="form-input text-sm"
+                    >
+                        {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    </select>
+                </div>
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-600">الفصل</label>
+                    <select 
+                        value={selectedClass}
+                        onChange={(e) => setSelectedClass(e.target.value)}
+                        disabled={availableClasses.length === 0}
+                        className="form-input text-sm"
+                    >
+                        {availableClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                </div>
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-600">اسم الطالب</label>
+                    <select 
+                        value={selectedStudentId}
+                        onChange={(e) => setSelectedStudentId(e.target.value)}
+                        disabled={availableStudents.length === 0}
+                        className="form-input text-sm font-bold"
+                    >
+                        {availableStudents.length === 0 && <option value="">لا يوجد طلاب</option>}
+                        {availableStudents.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                </div>
+             </div>
+        </div>
 
-                    <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-600">اسم الطالب</label>
-                        <div className="relative">
-                            <select 
-                                value={selectedStudentId}
-                                onChange={(e) => setSelectedStudentId(e.target.value)}
-                                disabled={availableStudents.length === 0}
-                                className="win-input w-full p-2.5 appearance-none outline-none disabled:bg-gray-50 text-sm"
-                            >
-                                {availableStudents.length === 0 && <option value="">لا يوجد طلاب</option>}
-                                {availableStudents.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                            </select>
-                            <ChevronDown className="absolute left-3 top-3 text-gray-400 pointer-events-none" size={14} />
-                        </div>
-                    </div>
+        {/* Section 2: Meeting Details */}
+        <div className="space-y-4">
+            <h3 className="font-bold text-slate-800 text-sm border-b pb-2 border-gray-100 flex items-center gap-2">
+                <CalendarClock size={18} className="text-blue-600" />
+                تفاصيل الاستدعاء
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-600">تاريخ الحضور</label>
+                    <input 
+                        type="date" 
+                        value={summonDate}
+                        onChange={(e) => setSummonDate(e.target.value)}
+                        className="form-input text-sm text-center"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-600">الوقت</label>
+                    <input 
+                        type="time" 
+                        value={summonTime}
+                        onChange={(e) => setSummonTime(e.target.value)}
+                        className="form-input text-sm text-center"
+                    />
                 </div>
             </div>
 
-            {/* Assets Configuration (Toggle) */}
-            <div className="win-card p-1">
-               <button 
-                  onClick={() => setShowAssetsSettings(!showAssetsSettings)}
-                  className="w-full flex items-center justify-between p-3 text-sm font-bold text-slate-700 hover:bg-gray-50 rounded-lg transition-colors"
-               >
-                  <div className="flex items-center gap-2">
-                     <Settings size={18} className="text-gray-400" />
-                     <span>الشعار والتواقيع</span>
-                  </div>
-                  <span className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full">{showAssetsSettings ? 'إخفاء' : 'تعديل'}</span>
-               </button>
-
-               {showAssetsSettings && (
-                 <div className="p-4 border-t border-gray-100 mt-1 space-y-4 animate-scaleIn bg-gray-50/30">
+            <div className="space-y-2 pt-2">
+                <label className="text-xs font-bold text-slate-600">سبب الاستدعاء</label>
+                <div className="flex flex-wrap gap-3">
                     {[
-                        { key: 'headerLogo', label: 'شعار الوزارة/المدرسة', icon: <ImageIcon size={14}/> },
-                        { key: 'committeeSig', label: 'توقيع رئيس اللجنة', icon: <Upload size={14}/> },
-                        { key: 'schoolStamp', label: 'الختم المدرسي', icon: <ImageIcon size={14}/> },
-                        { key: 'principalSig', label: 'توقيع المدير', icon: <Upload size={14}/> }
-                    ].map((item) => (
-                        <div key={item.key}>
-                            <div className="flex justify-between items-center mb-1">
-                                <label className="text-[11px] font-bold text-slate-600">{item.label}</label>
-                                {(assets as any)[item.key] && (
-                                    <button onClick={() => clearAsset(item.key as keyof SchoolAssets)} className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"><Trash2 size={12}/></button>
-                                )}
-                            </div>
-                            <div className="relative border border-dashed border-gray-300 rounded-lg p-2 text-center hover:bg-white transition-colors cursor-pointer bg-white">
-                                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(item.key as keyof SchoolAssets, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                {(assets as any)[item.key] ? (
-                                    <img src={(assets as any)[item.key]} className="h-8 mx-auto object-contain" alt="Asset" />
-                                ) : (
-                                    <div className="text-gray-400 text-[10px] flex flex-col items-center gap-1">{item.icon}<span>رفع صورة</span></div>
-                                )}
-                            </div>
-                        </div>
+                        { id: 'absence', label: 'تكرار الغياب' },
+                        { id: 'truant', label: 'تسرب حصص' },
+                        { id: 'behavior', label: 'سلوكيات' },
+                        { id: 'level', label: 'تدني مستوى' },
+                        { id: 'other', label: 'آخر ..' },
+                    ].map((reason) => (
+                        <button
+                            key={reason.id}
+                            onClick={() => setReasonType(reason.id)}
+                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all border 
+                                ${reasonType === reason.id 
+                                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-105' 
+                                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                }`}
+                        >
+                            {reason.label}
+                        </button>
                     ))}
+                </div>
+                {reasonType === 'other' && (
+                    <textarea 
+                        value={customReason}
+                        onChange={(e) => setCustomReason(e.target.value)}
+                        placeholder="اكتب سبب الاستدعاء هنا..."
+                        className="form-input h-20 resize-none text-sm mt-3"
+                    />
+                )}
+            </div>
+        </div>
+
+        {/* Section 3: Assets Toggle */}
+        <div className="pt-2">
+           <button 
+              onClick={() => setShowAssetsSettings(!showAssetsSettings)}
+              className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-blue-600 transition-colors"
+           >
+              <Settings size={16} />
+              <span>إعدادات الشعار والتواقيع (اختياري)</span>
+              <ChevronDown size={14} className={`transition-transform ${showAssetsSettings ? 'rotate-180' : ''}`} />
+           </button>
+
+           {showAssetsSettings && (
+             <div className="p-4 border border-gray-100 rounded-xl mt-3 grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50/50">
+                {[
+                    { key: 'headerLogo', label: 'شعار المدرسة', icon: <ImageIcon size={14}/> },
+                    { key: 'committeeSig', label: 'رئيس اللجنة', icon: <Upload size={14}/> },
+                    { key: 'schoolStamp', label: 'الختم المدرسي', icon: <ImageIcon size={14}/> },
+                    { key: 'principalSig', label: 'توقيع المدير', icon: <Upload size={14}/> }
+                ].map((item) => (
+                    <div key={item.key}>
+                        <div className="flex justify-between items-center mb-1">
+                            <label className="text-[10px] font-bold text-slate-600">{item.label}</label>
+                            {(assets as any)[item.key] && (
+                                <button onClick={() => clearAsset(item.key as keyof SchoolAssets)} className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"><Trash2 size={10}/></button>
+                            )}
+                        </div>
+                        <div className="relative border border-dashed border-gray-300 rounded-lg p-2 text-center hover:bg-white transition-colors cursor-pointer bg-white h-16 flex items-center justify-center">
+                            <input type="file" accept="image/*" onChange={(e) => handleImageUpload(item.key as keyof SchoolAssets, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                            {(assets as any)[item.key] ? (
+                                <img src={(assets as any)[item.key]} className="max-h-full max-w-full object-contain" alt="Asset" />
+                            ) : (
+                                <div className="text-gray-400 text-[10px] flex flex-col items-center gap-1">{item.icon}</div>
+                            )}
+                        </div>
+                    </div>
+                ))}
+             </div>
+           )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col md:flex-row gap-4 pt-6 border-t border-gray-100">
+            <button 
+                onClick={() => setShowPreview(true)}
+                disabled={!isFormValid}
+                className="btn btn-secondary flex-1 border-blue-200 text-blue-700 hover:bg-blue-50"
+            >
+                <Eye size={18} />
+                معاينة الخطاب
+            </button>
+            
+            <button 
+                onClick={handlePrint}
+                disabled={!isFormValid}
+                className="btn btn-secondary flex-1"
+            >
+                <Printer size={18} />
+                طباعة
+            </button>
+            
+            <button 
+                onClick={handleSendWhatsApp}
+                disabled={!isFormValid || isGeneratingPdf}
+                className="btn flex-1 bg-green-600 text-white hover:bg-green-700 border-transparent shadow-sm"
+            >
+                {isGeneratingPdf ? <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div> : <Share2 size={18} />}
+                {isGeneratingPdf ? 'جاري التجهيز...' : 'واتساب PDF'}
+            </button>
+        </div>
+      </div>
+
+      {/* 
+          PREVIEW & RENDER COMPONENT 
+          This is always in the DOM but hidden off-screen unless modal is open 
+          to allow html2canvas to work without opening the modal first.
+      */}
+      <div 
+        className={`
+            fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-opacity duration-200
+            ${showPreview ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}
+        `}
+      >
+        <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+             
+             {/* Modal Header */}
+             <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                    <Eye size={18} className="text-blue-600" />
+                    معاينة الخطاب
+                </h3>
+                <button onClick={() => setShowPreview(false)} className="text-gray-500 hover:text-red-500 hover:bg-red-50 p-1 rounded-full transition-colors">
+                    <X size={24} />
+                </button>
+             </div>
+
+             {/* Scrollable Preview Area */}
+             <div className="flex-1 overflow-auto p-8 bg-gray-200 flex justify-center">
+                 {/* The actual A4 Paper div. 
+                     If showPreview is false, we technically need this rendered for PDF generation.
+                     However, simpler approach: We duplicate the render logic inside a hidden div on the main page OR
+                     Use this modal as the only source and manipulate visibility classes.
+                     
+                     FIX: We will render the A4 paper here. When showPreview is false, the parent modal is hidden.
+                     But html2canvas cannot capture hidden elements (display:none or visibility:hidden).
+                     So we need a separate "Hidden Render" strategy or handle it differently.
+                 */}
+                  
+                 {/* 
+                    Strategy:
+                    This div is the visual preview.
+                    Below outside this modal, there is another div used for PDF generation.
+                 */}
+                 <div className="bg-white shadow-lg w-[210mm] min-h-[297mm] p-[15mm] text-black font-serif origin-top transform scale-90 md:scale-100">
+                     <LetterContent 
+                        schoolName={schoolName}
+                        districtName={districtName}
+                        assets={assets}
+                        studentName={selectedStudentName}
+                        gradeName={selectedGradeName}
+                        className={selectedClassName}
+                        reason={getReasonText()}
+                        date={summonDate}
+                        time={summonTime}
+                     />
                  </div>
-               )}
+             </div>
+             
+             {/* Modal Footer Actions */}
+             <div className="p-4 border-t bg-white flex justify-end gap-3">
+                 <button onClick={() => setShowPreview(false)} className="btn btn-secondary">إغلاق</button>
+                 <button onClick={() => { setShowPreview(false); handleSendWhatsApp(); }} className="btn bg-green-600 text-white">إرسال</button>
+             </div>
+        </div>
+      </div>
+
+      {/* 
+         HIDDEN RENDER FOR PDF GENERATION 
+         This div is positioned off-screen so it's technically "visible" to the browser renderer
+         allowing html2canvas to capture it without opening the modal.
+      */}
+      <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+        <div ref={letterRef} className="w-[210mm] min-h-[297mm] bg-white p-[15mm] text-black font-serif">
+             <LetterContent 
+                schoolName={schoolName}
+                districtName={districtName}
+                assets={assets}
+                studentName={selectedStudentName}
+                gradeName={selectedGradeName}
+                className={selectedClassName}
+                reason={getReasonText()}
+                date={summonDate}
+                time={summonTime}
+             />
+        </div>
+      </div>
+
+    </div>
+  );
+};
+
+// Reusable Letter Content Component to avoid duplication
+const LetterContent: React.FC<{
+    schoolName: string;
+    districtName: string;
+    assets: SchoolAssets;
+    studentName: string;
+    gradeName: string;
+    className: string;
+    reason: string;
+    date: string;
+    time: string;
+}> = ({ schoolName, districtName, assets, studentName, gradeName, className, reason, date, time }) => {
+    return (
+        <div className="border-[3px] border-double border-black p-8 h-full flex flex-col relative justify-between">
+            {/* Header Section */}
+            <div className="text-center space-y-2 mb-8">
+                <div className="flex justify-center mb-4 h-24 relative">
+                        {assets.headerLogo ? (
+                            <img src={assets.headerLogo} alt="Logo" className="h-full w-auto object-contain" />
+                        ) : (
+                            <img 
+                            src="/assets/logo.png" 
+                            alt="Logo" 
+                            className="h-full w-auto object-contain grayscale opacity-80" 
+                            onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                document.getElementById('fallback-logo-box-render')?.classList.remove('hidden');
+                            }} 
+                        />
+                        )}
+                        <div id="fallback-logo-box-render" className={`w-24 h-24 border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-xs font-bold rounded-lg absolute top-0 left-1/2 transform -translate-x-1/2 ${assets.headerLogo ? 'hidden' : 'hidden'}`}>
+                        شعار الوزارة
+                        </div>
+                </div>
+                <h2 className="font-bold text-lg leading-tight">سلطنة عُمان</h2>
+                <h2 className="font-bold text-lg leading-tight">وزارة التربية والتعليم</h2>
+                <h3 className="font-bold text-base leading-tight">المديرية العامة للتربية والتعليم لمحافظة {districtName}</h3>
+                <h3 className="font-bold text-base leading-tight">مدرسة {schoolName}</h3>
             </div>
 
-            {/* Meeting Details Card */}
-            <div className="win-card p-5 animate-fadeIn" style={{ animationDelay: '100ms' }}>
-                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 text-sm border-b pb-2 border-gray-100">
-                    <CalendarClock size={18} className="text-primary" />
-                    تفاصيل الموعد والسبب
-                </h3>
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-600">تاريخ الحضور</label>
-                        <input 
-                            type="date" 
-                            value={summonDate}
-                            onChange={(e) => setSummonDate(e.target.value)}
-                            className="win-input w-full p-2 outline-none text-right text-sm"
-                            style={{ direction: 'ltr' }}
-                        />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-600">الوقت</label>
-                        <input 
-                            type="time" 
-                            value={summonTime}
-                            onChange={(e) => setSummonTime(e.target.value)}
-                            className="win-input w-full p-2 outline-none text-right text-sm"
-                            style={{ direction: 'ltr' }}
-                        />
-                    </div>
+            {/* Letter Body */}
+            <div className="flex-1 text-right space-y-8 leading-loose text-justify text-[16px]">
+                
+                <div className="flex flex-wrap justify-between gap-4 font-bold border-b border-black pb-4">
+                    <span>الفاضل ولي أمر الطالب : ( {studentName} )</span>
+                    <span>المقيد بالصف : ( {gradeName} / {className} )</span>
                 </div>
 
-                <div className="mb-6 space-y-2">
-                    <label className="text-xs font-bold text-slate-600">سبب الاستدعاء</label>
-                    <div className="flex flex-wrap gap-2">
-                        {[
-                            { id: 'absence', label: 'تكرار الغياب' },
-                            { id: 'truant', label: 'تسرب حصص' },
-                            { id: 'behavior', label: 'سلوكيات' },
-                            { id: 'level', label: 'تدني مستوى' },
-                            { id: 'other', label: 'آخر ..' },
-                        ].map((reason) => (
-                            <button
-                                key={reason.id}
-                                onClick={() => setReasonType(reason.id)}
-                                className={`px-3 py-1.5 rounded-[4px] text-[11px] font-bold transition-all border ${reasonType === reason.id ? 'bg-primary text-white border-primary shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
-                            >
-                                {reason.label}
-                            </button>
-                        ))}
-                    </div>
-                    {reasonType === 'other' && (
-                        <textarea 
-                            value={customReason}
-                            onChange={(e) => setCustomReason(e.target.value)}
-                            placeholder="اكتب سبب الاستدعاء هنا..."
-                            className="win-input w-full p-2 outline-none h-20 resize-none text-sm mt-2"
-                        />
+                <div className="text-center font-bold text-2xl my-8 underline offset-4">
+                    السلام علیکم ورحمة الله وبرکاته
+                </div>
+                
+                <p className="indent-16 leading-[2.5]">
+                    نظراً لأهمية التعاون بين المدرسة وولي الأمر فيما يخدم مصلحة الطالب، ويحقق له النجاح، ونأمل منكم الحضور إلى المدرسة لبحث بعض الأمور المتعلقة بابنكم:
+                    <br/>
+                    ( <span className="font-bold underline text-lg mx-2">{reason || '...........................................'}</span> ) 
+                    <br/>
+                    ولنا في حضوركم أمل بهدف التعاون بين البيت والمدرسة لتحقيق الرسالة التربوية الهادفة التي نسعى إليها، وتأمل المدرسة حضوركم في أقرب فرصة ممكنة لديكم.
+                </p>
+
+                <div className="mt-8 border p-4 text-center bg-gray-50 border-gray-300">
+                        <p className="font-bold text-lg">
+                        * الموعد المقترح: يوم <span className="underline mx-2">{date}</span> الساعة <span className="underline mx-2">{time}</span>.
+                    </p>
+                </div>
+
+                <div className="mt-8 font-bold text-center text-lg">
+                    شاكرين لكم حسن تعاونكم وتجاوبكم معنا لتحقيق مصلحة الطالب،،
+                </div>
+            </div>
+
+            {/* Signatures Footer */}
+            <div className="mt-16 px-4 flex justify-between items-end relative h-32">
+                {/* Committee Head */}
+                <div className="text-center w-1/3 z-10">
+                    <p className="font-bold mb-4 text-sm">رئيس لجنة شؤون الطلبة</p>
+                    {assets.committeeSig ? (
+                        <img src={assets.committeeSig} className="h-20 mx-auto object-contain" />
+                    ) : (
+                        <div className="mt-10 border-b border-black w-2/3 mx-auto"></div>
                     )}
                 </div>
 
-                <div className="flex gap-3">
-                    <button 
-                        onClick={handlePrint}
-                        disabled={!isFormValid}
-                        className="flex-1 py-2.5 bg-slate-800 hover:bg-black text-white rounded-[4px] font-medium shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    >
-                        <Printer size={16} />
-                        طباعة
-                    </button>
-                    <button 
-                        onClick={handleSendWhatsApp}
-                        disabled={!isFormValid || isGeneratingPdf}
-                        className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-[4px] font-medium shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    >
-                        {isGeneratingPdf ? <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div> : <Share2 size={16} />}
-                        {isGeneratingPdf ? 'جاري التجهيز...' : 'واتساب PDF'}
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        {/* Right Column: High Fidelity Preview */}
-        <div className="xl:col-span-2">
-            <div className="bg-gray-100 p-8 rounded-xl border border-gray-200 shadow-inner flex justify-center items-start h-full overflow-auto">
-                {/* Simulated Paper A4 - Fixed Size & Padding */}
-                <div className="bg-white shadow-lg w-[210mm] min-h-[297mm] relative mx-auto origin-top">
-                     {/* 
-                        This div is captured by html2canvas. 
-                        It MUST look exactly like a printed paper.
-                        Margins reduced from 20mm to 10mm (approx p-10) to fix "small form" issue.
-                     */}
-                    <div ref={letterRef} className="w-full h-full p-10 flex flex-col text-black font-serif">
-                        
-                        {/* Frame Border - Adjusted Padding */}
-                        <div className="border-[3px] border-double border-black p-6 h-full flex flex-col relative justify-between">
-
-                            {/* Header */}
-                            <div className="text-center space-y-2 mb-8">
-                                <div className="flex justify-center mb-2 h-24 relative">
-                                     {assets.headerLogo ? (
-                                         <img src={assets.headerLogo} alt="Logo" className="h-full w-auto object-contain" />
-                                     ) : (
-                                         <img 
-                                            src="/assets/logo.png" 
-                                            alt="Logo" 
-                                            className="h-full w-auto object-contain grayscale opacity-80" 
-                                            onError={(e) => {
-                                                e.currentTarget.style.display = 'none';
-                                                document.getElementById('fallback-logo-box')?.classList.remove('hidden');
-                                            }} 
-                                        />
-                                     )}
-                                     
-                                     {/* Placeholder Box that appears if no logo exists */}
-                                     <div id="fallback-logo-box" className={`w-24 h-24 border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-xs font-bold rounded-lg absolute top-0 left-1/2 transform -translate-x-1/2 ${assets.headerLogo ? 'hidden' : 'hidden'}`}>
-                                        شعار الوزارة
-                                     </div>
-                                </div>
-                                <h2 className="font-bold text-lg leading-tight">سلطنة عُمان</h2>
-                                <h2 className="font-bold text-lg leading-tight">وزارة التربية والتعليم</h2>
-                                <h3 className="font-bold text-base leading-tight">المديرية العامة للتربية والتعليم لمحافظة {districtName}</h3>
-                                <h3 className="font-bold text-base leading-tight">مدرسة {schoolName}</h3>
-                            </div>
-
-                            {/* Body */}
-                            <div className="flex-1 text-right space-y-8 leading-loose text-justify text-[16px]">
-                                
-                                <div className="flex flex-wrap justify-between gap-4 font-bold border-b border-black pb-4">
-                                    <span>الفاضل ولي أمر الطالب : ( {selectedStudentName} )</span>
-                                    <span>المقيد بالصف : ( {selectedGradeName} / {selectedClassName} )</span>
-                                </div>
-
-                                <div className="text-center font-bold text-2xl my-8 underline offset-4">
-                                    السلام علیکم ورحمة الله وبرکاته
-                                </div>
-                                
-                                <p className="indent-16 leading-[2.5]">
-                                    نظراً لأهمية التعاون بين المدرسة وولي الأمر فيما يخدم مصلحة الطالب، ويحقق له النجاح، ونأمل منكم الحضور إلى المدرسة لبحث بعض الأمور المتعلقة بابنكم:
-                                    <br/>
-                                    ( <span className="font-bold underline text-lg mx-2">{getReasonText() || '...........................................'}</span> ) 
-                                    <br/>
-                                    ولنا في حضوركم أمل بهدف التعاون بين البيت والمدرسة لتحقيق الرسالة التربوية الهادفة التي نسعى إليها، وتأمل المدرسة حضوركم في أقرب فرصة ممكنة لديكم.
-                                </p>
-
-                                <div className="mt-8 border p-4 text-center bg-gray-50">
-                                     <p className="font-bold text-lg">
-                                        * الموعد المقترح: يوم <span className="underline mx-2">{summonDate}</span> الساعة <span className="underline mx-2">{summonTime}</span>.
-                                    </p>
-                                </div>
-
-                                <div className="mt-8 font-bold text-center text-lg">
-                                    شاكرين لكم حسن تعاونكم وتجاوبكم معنا لتحقيق مصلحة الطالب،،
-                                </div>
-                            </div>
-
-                            {/* Signatures */}
-                            <div className="mt-16 px-4 flex justify-between items-end relative h-32">
-                                {/* Committee Head */}
-                                <div className="text-center w-1/3 z-10">
-                                    <p className="font-bold mb-4 text-sm">رئيس لجنة شؤون الطلبة</p>
-                                    {assets.committeeSig ? (
-                                        <img src={assets.committeeSig} className="h-20 mx-auto object-contain" />
-                                    ) : (
-                                        <div className="mt-10 border-b border-black w-2/3 mx-auto"></div>
-                                    )}
-                                </div>
-
-                                {/* Stamp */}
-                                {assets.schoolStamp && (
-                                    <div className="absolute left-1/2 bottom-4 transform -translate-x-1/2 z-0 opacity-90 pointer-events-none mix-blend-multiply">
-                                         <img src={assets.schoolStamp} className="w-32 object-contain" />
-                                    </div>
-                                )}
-
-                                {/* Principal */}
-                                <div className="text-center w-1/3 z-10">
-                                    <p className="font-bold mb-4 text-sm">مدير المدرسة</p>
-                                    {assets.principalSig ? (
-                                        <img src={assets.principalSig} className="h-20 mx-auto object-contain" />
-                                    ) : (
-                                        <div className="mt-10 border-b border-black w-2/3 mx-auto"></div>
-                                    )}
-                                </div>
-                            </div>
-
-                        </div>
+                {/* Stamp */}
+                {assets.schoolStamp && (
+                    <div className="absolute left-1/2 bottom-4 transform -translate-x-1/2 z-0 opacity-90 pointer-events-none mix-blend-multiply">
+                            <img src={assets.schoolStamp} className="w-32 object-contain" />
                     </div>
+                )}
+
+                {/* Principal */}
+                <div className="text-center w-1/3 z-10">
+                    <p className="font-bold mb-4 text-sm">مدير المدرسة</p>
+                    {assets.principalSig ? (
+                        <img src={assets.principalSig} className="h-20 mx-auto object-contain" />
+                    ) : (
+                        <div className="mt-10 border-b border-black w-2/3 mx-auto"></div>
+                    )}
                 </div>
             </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default SummonPage;

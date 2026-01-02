@@ -1,11 +1,12 @@
+
 import React from 'react';
 import { Info, User, Smartphone } from 'lucide-react';
 
 const AboutApp: React.FC = () => {
   return (
-    <div className="p-4 md:p-8 h-full flex flex-col items-center justify-center overflow-y-auto custom-scrollbar">
+    <div className="p-4 md:p-8 h-full flex flex-col items-center justify-center overflow-y-auto">
       
-      <div className="bg-white w-full max-w-3xl rounded-2xl shadow-xl border border-gray-100 overflow-hidden relative my-auto">
+      <div className="card w-full max-w-3xl shadow-xl relative my-auto">
          {/* الشريط العلوي الملون */}
          <div className="h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600"></div>
          
@@ -17,7 +18,7 @@ const AboutApp: React.FC = () => {
                     <Info size={32} strokeWidth={2.5} />
                 </div>
                 <h2 className="text-2xl font-extrabold text-slate-900 mb-1 tracking-tight">نظام مدرستي</h2>
-                <p className="text-sm text-slate-500 font-medium dir-ltr">Version 2.0.0 (Windows Edition)</p>
+                <p className="text-sm text-slate-500 font-medium dir-ltr">Version 2.0.0</p>
             </div>
 
             {/* نبذة عن التطبيق */}
@@ -31,7 +32,7 @@ const AboutApp: React.FC = () => {
             {/* المنطقة البارزة: المصمم والتواصل - تصميم أفقي صغير */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 
-                {/* بطاقة المصمم - تم حذف النص الوصفي */}
+                {/* بطاقة المصمم */}
                 <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 flex items-center gap-3 hover:bg-indigo-50 transition-all duration-300 group">
                     <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-indigo-600 shrink-0 group-hover:scale-110 transition-transform">
                          <User size={18} />

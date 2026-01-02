@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Filter, Save, Check, X, AlertTriangle, DoorOpen, Search, Share2 } from 'lucide-react';
 import { students, grades, classes, getAttendance, saveAttendance, getAttendanceRecord, getSchoolSettings } from '../services/dataService';
@@ -132,17 +133,17 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({ onNavigate }) => {
   }
 
   return (
-    <div className="p-2 md:p-6 h-[calc(100vh-80px)] flex flex-col relative">
-      <div className="flex flex-row justify-between items-center gap-4 mb-4">
+    <div className="flex flex-col h-full space-y-4">
+      <div className="flex flex-row justify-between items-center">
         <div>
            <h2 className="text-xl md:text-2xl font-bold text-slate-900">تسجيل الحضور اليومي</h2>
            <p className="text-sm text-gray-500">إدارة {schoolName}</p>
         </div>
-        <div className="flex gap-2 w-auto">
+        <div>
              <button 
                onClick={saveAll}
                disabled={isSaving}
-               className="win-btn-primary flex items-center justify-center gap-2 shadow-sm"
+               className="btn btn-primary"
              >
                <Save size={18} />
                {isSaving ? 'جاري الحفظ...' : 'حفظ السجل'}
@@ -150,23 +151,23 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({ onNavigate }) => {
         </div>
       </div>
 
-      <div className="bg-white p-3 md:p-4 rounded-lg border border-gray-200 shadow-sm mb-4 flex flex-row gap-3 items-center">
+      <div className="card p-3 md:p-4 flex flex-col md:flex-row gap-3 items-center">
         <div className="flex items-center gap-2 text-gray-700 font-medium text-sm hidden md:flex">
-            <Filter size={16} className="text-primary" />
+            <Filter size={16} className="text-blue-600" />
             <span>خيارات العرض:</span>
         </div>
         
-        <div className="flex gap-2 md:gap-4 flex-1">
+        <div className="flex gap-2 md:gap-4 flex-1 w-full md:w-auto">
             <input 
                 type="date"
                 value={currentDate}
                 onChange={(e) => setCurrentDate(e.target.value)}
-                className="w-auto p-2 bg-white border border-gray-300 rounded-[4px] text-sm focus:border-primary outline-none"
+                className="form-input w-auto text-sm"
             />
             <select 
                 value={selectedGrade}
                 onChange={(e) => setSelectedGrade(e.target.value)}
-                className="p-2 bg-white border border-gray-300 rounded-[4px] text-sm focus:border-primary outline-none"
+                className="form-input w-auto text-sm"
             >
                 {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
@@ -174,26 +175,26 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({ onNavigate }) => {
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
                 disabled={availableClasses.length === 0}
-                className="p-2 bg-white border border-gray-300 rounded-[4px] text-sm focus:border-primary outline-none disabled:bg-gray-100"
+                className="form-input w-auto text-sm"
             >
                 {availableClasses.length === 0 && <option value="">لا توجد فصول</option>}
                 {availableClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
         </div>
 
-        <div className="relative w-40 md:w-64">
+        <div className="relative w-full md:w-64">
           <input
             type="text"
             placeholder="بحث عن طالب..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-8 pr-4 py-2 bg-white border border-gray-300 rounded-[4px] focus:outline-none focus:border-primary focus:border-b-2 text-sm transition-all"
+            className="form-input pl-8 text-sm"
           />
           <Search className="absolute left-2.5 top-2.5 text-gray-400" size={16} />
         </div>
       </div>
 
-      <div className="flex-1 bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+      <div className="card flex-1 overflow-hidden flex flex-col">
          {!selectedClass ? (
             <div className="flex-1 flex items-center justify-center text-gray-400">الرجاء اختيار فصل</div>
          ) : filteredStudents.length === 0 ? (
@@ -203,7 +204,7 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({ onNavigate }) => {
                 style={{ height: '100%', direction: 'rtl' }}
                 data={filteredStudents}
                 fixedHeaderContent={() => (
-                    <tr className="bg-gray-50/80 backdrop-blur-sm border-b border-gray-200">
+                    <tr className="bg-gray-50 border-b border-gray-200">
                         <th className="p-3 text-right text-xs font-semibold text-gray-600 w-1/4">الطالب</th>
                         <th className="p-3 text-center text-xs font-semibold text-gray-600 w-1/2">حالة الحضور</th>
                         <th className="p-3 text-center text-xs font-semibold text-gray-600 w-1/4">إجراءات</th>
@@ -243,7 +244,7 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({ onNavigate }) => {
                                 <button 
                                     onClick={() => handleStatusChange(student.id, AttendanceStatus.ESCAPE)}
                                     className={`p-2 rounded-[4px] transition-all border ${status === AttendanceStatus.ESCAPE ? 'bg-purple-100 border-purple-300 text-purple-700' : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'}`}
-                                    title="هروب"
+                                    title="تسرب"
                                 >
                                     <DoorOpen size={16} />
                                 </button>
@@ -270,7 +271,7 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({ onNavigate }) => {
          )}
       </div>
       
-      <div className="mt-4 bg-white p-3 rounded-lg border border-gray-200 shadow-sm flex justify-around text-sm font-medium">
+      <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm flex justify-around text-sm font-medium">
          <span className="text-gray-600">الطلاب: {filteredStudents.length}</span>
          <span className="text-green-600">حضور: {Object.values(localAttendance).filter(s => s === AttendanceStatus.PRESENT).length}</span>
          <span className="text-red-600">غياب: {Object.values(localAttendance).filter(s => s === AttendanceStatus.ABSENT).length}</span>

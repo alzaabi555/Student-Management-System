@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { School, ArrowRight, BookOpen, MapPin, Power } from 'lucide-react';
+import { School, ArrowRight, BookOpen, MapPin, Power, ShieldCheck } from 'lucide-react';
 import { saveSchoolSettings } from '../services/dataService';
 
 interface WelcomeSetupProps {
@@ -12,8 +13,6 @@ const WelcomeSetup: React.FC<WelcomeSetupProps> = ({ onComplete }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    // حفظ البيانات مباشرة دون أي شروط معقدة
     if (schoolName && district) {
       saveSchoolSettings(schoolName, district);
       onComplete();
@@ -21,75 +20,92 @@ const WelcomeSetup: React.FC<WelcomeSetupProps> = ({ onComplete }) => {
   };
 
   const handleExit = () => {
-    if (window.confirm("هل تريد إغلاق البرنامج؟")) {
-      window.close();
-      window.location.href = "about:blank";
-    }
+    window.close();
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Decorations */}
-      <div className="absolute top-0 left-0 w-64 h-64 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-      <div className="absolute top-0 right-0 w-64 h-64 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[#f3f4f6]" dir="rtl" style={{ background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)' }}>
       
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 relative z-10 border border-white/50 backdrop-blur-sm">
-        <div className="text-center mb-6">
-          <div className="bg-primary/10 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 text-primary transform rotate-3">
-            <School size={40} />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">إعداد النظام</h1>
-          <p className="text-gray-500 text-sm">أهلاً بك في نظام مدرستي. الرجاء إدخال بيانات المدرسة للبدء.</p>
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-lg overflow-hidden">
+        
+        {/* Decorative Header */}
+        <div className="bg-blue-700 h-2 w-full"></div>
+        
+        {/* Content */}
+        <div className="p-8">
+            <div className="text-center mb-8">
+                <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-700 border-4 border-white shadow-lg ring-1 ring-gray-100">
+                    <School size={48} strokeWidth={1.5} />
+                </div>
+                <h1 className="text-3xl font-extrabold text-gray-900 mb-2">إعداد النظام</h1>
+                <p className="text-gray-500 font-medium">نظام مدرستي للإدارة المدرسية الذكية</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+                
+                {/* Input Group 1 */}
+                <div className="space-y-2">
+                    <label className="block text-sm font-bold text-gray-700">اسم المدرسة الرسمي</label>
+                    <div className="relative group">
+                        <div className="absolute right-3 top-3 text-gray-400 group-focus-within:text-blue-600 transition-colors">
+                            <BookOpen size={20} />
+                        </div>
+                        <input
+                            type="text"
+                            required
+                            value={schoolName}
+                            onChange={(e) => setSchoolName(e.target.value)}
+                            className="form-input pr-11 text-lg"
+                            placeholder="مثال: مدرسة الإبداع للتعليم الأساسي"
+                        />
+                    </div>
+                </div>
+
+                {/* Input Group 2 */}
+                <div className="space-y-2">
+                    <label className="block text-sm font-bold text-gray-700">المديرية / المحافظة</label>
+                    <div className="relative group">
+                        <div className="absolute right-3 top-3 text-gray-400 group-focus-within:text-blue-600 transition-colors">
+                            <MapPin size={20} />
+                        </div>
+                        <input
+                            type="text"
+                            required
+                            value={district}
+                            onChange={(e) => setDistrict(e.target.value)}
+                            className="form-input pr-11 text-lg"
+                            placeholder="مثال: المديرية العامة لمحافظة شمال الباطنة"
+                        />
+                    </div>
+                </div>
+                
+                <div className="bg-blue-50 p-3 rounded-lg flex items-start gap-3 border border-blue-100 mt-2">
+                    <ShieldCheck className="text-blue-600 shrink-0 mt-0.5" size={18} />
+                    <p className="text-xs text-blue-800 leading-relaxed">
+                        سيتم استخدام هذه البيانات في ترويسة التقارير الرسمية والمراسلات. يرجى التأكد من صحتها.
+                    </p>
+                </div>
+
+                {/* Actions */}
+                <div className="pt-4 grid grid-cols-1 gap-3">
+                    <button type="submit" className="btn-primary w-full justify-center text-base py-3">
+                        <span>حفظ البيانات وبدء النظام</span>
+                        <ArrowRight size={20} />
+                    </button>
+                    
+                    <button type="button" onClick={handleExit} className="btn-secondary w-full justify-center text-red-600 hover:bg-red-50 hover:border-red-200 border-gray-200 text-sm">
+                        <Power size={18} />
+                        <span>إغلاق البرنامج</span>
+                    </button>
+                </div>
+            </form>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="group">
-              <label className="block text-sm font-medium text-gray-700 mb-1">اسم المدرسة</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  required
-                  value={schoolName}
-                  onChange={(e) => setSchoolName(e.target.value)}
-                  className="w-full pl-4 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
-                  placeholder="مثال: مدرسة الإبداع للبنين"
-                />
-                <BookOpen className="absolute left-3 top-3.5 text-gray-400 group-focus-within:text-primary transition-colors" size={20} />
-              </div>
-            </div>
-
-            <div className="group">
-              <label className="block text-sm font-medium text-gray-700 mb-1">المحافظة / المنطقة التعليمية</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  required
-                  value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
-                  className="w-full pl-4 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
-                  placeholder="مثال: محافظة شمال الباطنة"
-                />
-                <MapPin className="absolute left-3 top-3.5 text-gray-400 group-focus-within:text-primary transition-colors" size={20} />
-              </div>
-            </div>
-
-          <button
-            type="submit"
-            className="w-full bg-primary hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 mt-4"
-          >
-            <span>حفظ والدخول</span>
-            <ArrowRight size={20} />
-          </button>
-          
-          <button
-            type="button"
-            onClick={handleExit}
-            className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
-          >
-            <Power size={18} />
-            <span>إغلاق البرنامج</span>
-          </button>
-        </form>
+        
+        {/* Footer */}
+        <div className="bg-gray-50 p-4 text-center border-t border-gray-100 flex justify-between items-center px-8 text-xs text-gray-400 font-mono">
+            <span>Ver 2.0.0</span>
+            <span>Madrasati Systems © 2024</span>
+        </div>
       </div>
     </div>
   );

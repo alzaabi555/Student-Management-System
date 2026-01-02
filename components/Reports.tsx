@@ -1,10 +1,16 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { Printer, FileSpreadsheet, User, Users, CalendarRange, Calendar, ChevronDown, Filter } from 'lucide-react';
+import { Printer, FileSpreadsheet, User, Users, CalendarRange, Calendar, ChevronDown, Filter, FileText } from 'lucide-react';
 import { getSchoolSettings, grades, classes, students, getAttendanceRecord, getStudentHistory, getClassPeriodStats } from '../services/dataService';
 import { printAttendanceSheet, printStudentReport, printClassPeriodReport } from '../services/printService';
 import { AttendanceStatus } from '../types';
 
-const Reports: React.FC = () => {
+interface ReportsProps {
+    initialStudentId?: string | null;
+    onClearInitial?: () => void;
+}
+
+const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) => {
   const [activeTab, setActiveTab] = useState<'class' | 'student'>('class');
   const [schoolName, setSchoolName] = useState('مدرستي');
 
@@ -40,6 +46,23 @@ const Reports: React.FC = () => {
         setSchoolName(settings.name);
     }
   }, []);
+
+  // --- Deep Link Effect (Handle Initial Student) ---
+  useEffect(() => {
+    if (initialStudentId) {
+        const student = students.find(s => s.id === initialStudentId);
+        if (student) {
+            setActiveTab('student');
+            setStGrade(student.gradeId);
+            setStClass(student.classId);
+            // Use setTimeout to allow render cycle to pick up dropdown changes before setting ID
+            setTimeout(() => {
+                setSelectedStudentId(student.id);
+            }, 0);
+        }
+        if (onClearInitial) onClearInitial();
+    }
+  }, [initialStudentId]);
 
   // --- Sync Classes Dropdown for Class Report ---
   const availableClasses = useMemo(() => 
@@ -77,14 +100,19 @@ const Reports: React.FC = () => {
 
   useEffect(() => {
     if (availableStudents.length > 0) {
-        setSelectedStudentId(availableStudents[0].id);
+        // Only select first if nothing is selected or current selection is invalid
+        // This prevents overwriting the Deep Link selection
+        const isCurrentValid = availableStudents.find(s => s.id === selectedStudentId);
+        if (!isCurrentValid && !initialStudentId) {
+            setSelectedStudentId(availableStudents[0].id);
+        }
     } else {
         setSelectedStudentId('');
     }
-  }, [availableStudents]);
+  }, [availableStudents, selectedStudentId, initialStudentId]);
 
 
-  // --- Handlers (Logic Preserved 100%) ---
+  // --- Handlers ---
 
   // 1. Class Report Handler
   const handlePrintClassReport = () => {
@@ -168,65 +196,64 @@ const Reports: React.FC = () => {
     );
   };
 
-  return (
-    <div className="p-4 md:p-8 max-w-5xl mx-auto h-[calc(100vh-80px)] overflow-y-auto custom-scrollbar">
-      <header className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-900 mb-1">مركز التقارير</h2>
-        <p className="text-gray-500 text-sm">طباعة الكشوفات الرسمية وتقارير المتابعة الفردية</p>
-      </header>
+  const selectedStudentName = students.find(s => s.id === selectedStudentId)?.name;
 
-      {/* Windows 11 Segmented Control (Tabs) */}
-      <div className="bg-gray-100/80 p-1.5 rounded-lg inline-flex mb-6 border border-gray-200 w-full md:w-auto">
+  return (
+    // Changed: Removed h-full, added w-full and pb-20 to ensure scrolling works and bottom content is accessible
+    <div className="flex flex-col w-full max-w-5xl mx-auto space-y-6 pb-20">
+      
+      {/* Header */}
+      <div className="flex items-center gap-4 pt-4 px-2">
+        <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 shadow-sm border border-blue-200">
+            <FileSpreadsheet size={28} />
+        </div>
+        <div>
+            <h2 className="text-2xl font-bold text-slate-800">مركز التقارير</h2>
+            <p className="text-gray-500 text-sm mt-1">طباعة الكشوفات الرسمية وتقارير المتابعة الفردية</p>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-4">
         <button 
             onClick={() => setActiveTab('class')}
-            className={`
-                px-6 py-2 rounded-[6px] text-sm font-semibold transition-all flex items-center justify-center gap-2 flex-1 md:flex-none
-                ${activeTab === 'class' ? 'bg-white shadow-sm text-slate-800' : 'text-gray-500 hover:bg-gray-200/50 hover:text-slate-700'}
-            `}
+            className={`btn flex-1 md:flex-none ${activeTab === 'class' ? 'btn-primary' : 'btn-secondary'}`}
         >
-            <Users size={16} />
+            <Users size={18} />
             تقارير الفصل
         </button>
         <button 
             onClick={() => setActiveTab('student')}
-            className={`
-                px-6 py-2 rounded-[6px] text-sm font-semibold transition-all flex items-center justify-center gap-2 flex-1 md:flex-none
-                ${activeTab === 'student' ? 'bg-white shadow-sm text-slate-800' : 'text-gray-500 hover:bg-gray-200/50 hover:text-slate-700'}
-            `}
+            className={`btn flex-1 md:flex-none ${activeTab === 'student' ? 'btn-primary' : 'btn-secondary'}`}
         >
-            <User size={16} />
+            <User size={18} />
             تقرير طالب
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200/60 p-6 md:p-8 animate-fadeIn min-h-[400px]">
+      <div className="card p-6 md:p-8 animate-fadeIn">
         
         {/* TAB 1: CLASS REPORT */}
         {activeTab === 'class' && (
             <div className="space-y-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-gray-100">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-blue-50 text-primary rounded-xl flex items-center justify-center shadow-sm">
-                            <FileSpreadsheet size={24} />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-lg text-slate-800">تقرير الفصل الدراسي</h3>
-                            <p className="text-gray-500 text-sm">اختر نوع التقرير والفترة الزمنية</p>
-                        </div>
+                    <div>
+                        <h3 className="font-bold text-lg text-slate-800">تقرير الفصل الدراسي</h3>
+                        <p className="text-gray-500 text-sm">اختر نوع التقرير والفترة الزمنية</p>
                     </div>
 
                     {/* Report Type Toggle */}
-                    <div className="flex bg-gray-50 p-1 rounded-lg border border-gray-200">
+                    <div className="flex bg-gray-50 p-1 rounded-lg border border-gray-200 self-start md:self-auto">
                         <button 
                             onClick={() => setReportType('daily')}
-                            className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${reportType === 'daily' ? 'bg-white shadow-sm text-primary ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700'}`}
+                            className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${reportType === 'daily' ? 'bg-white shadow-sm text-blue-700 ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700'}`}
                         >
                             <Calendar size={14} />
                             غياب يومي
                         </button>
                         <button 
                             onClick={() => setReportType('period')}
-                            className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${reportType === 'period' ? 'bg-white shadow-sm text-primary ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700'}`}
+                            className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${reportType === 'period' ? 'bg-white shadow-sm text-blue-700 ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700'}`}
                         >
                             <CalendarRange size={14} />
                             إحصاء فترة
@@ -243,8 +270,7 @@ const Reports: React.FC = () => {
                                 type="date" 
                                 value={classDate}
                                 onChange={(e) => setClassDate(e.target.value)}
-                                className="win-input w-full p-2.5 outline-none text-right text-sm"
-                                style={{ direction: 'ltr' }}
+                                className="form-input text-center text-sm"
                             />
                         </div>
                      ) : (
@@ -255,8 +281,7 @@ const Reports: React.FC = () => {
                                     type="date" 
                                     value={classStartDate}
                                     onChange={(e) => setClassStartDate(e.target.value)}
-                                    className="win-input w-full p-2.5 outline-none text-right text-sm"
-                                    style={{ direction: 'ltr' }}
+                                    className="form-input text-center text-sm"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -265,8 +290,7 @@ const Reports: React.FC = () => {
                                     type="date" 
                                     value={classEndDate}
                                     onChange={(e) => setClassEndDate(e.target.value)}
-                                    className="win-input w-full p-2.5 outline-none text-right text-sm"
-                                    style={{ direction: 'ltr' }}
+                                    className="form-input text-center text-sm"
                                 />
                             </div>
                          </>
@@ -274,32 +298,26 @@ const Reports: React.FC = () => {
 
                     <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-600">الصف الدراسي</label>
-                        <div className="relative">
-                            <select 
-                                value={selectedGrade}
-                                onChange={(e) => setSelectedGrade(e.target.value)}
-                                className="win-input w-full p-2.5 appearance-none outline-none text-sm"
-                            >
-                                {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                            </select>
-                            <ChevronDown className="absolute left-3 top-3 text-gray-400 pointer-events-none" size={16} />
-                        </div>
+                        <select 
+                            value={selectedGrade}
+                            onChange={(e) => setSelectedGrade(e.target.value)}
+                            className="form-input text-sm"
+                        >
+                            {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                        </select>
                     </div>
                     
                     <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-600">الفصل</label>
-                        <div className="relative">
-                            <select 
-                                value={selectedClass}
-                                onChange={(e) => setSelectedClass(e.target.value)}
-                                disabled={availableClasses.length === 0}
-                                className="win-input w-full p-2.5 appearance-none outline-none disabled:bg-gray-50 text-sm"
-                            >
-                                {availableClasses.length === 0 && <option value="">لا توجد فصول</option>}
-                                {availableClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                            <ChevronDown className="absolute left-3 top-3 text-gray-400 pointer-events-none" size={16} />
-                        </div>
+                        <select 
+                            value={selectedClass}
+                            onChange={(e) => setSelectedClass(e.target.value)}
+                            disabled={availableClasses.length === 0}
+                            className="form-input text-sm"
+                        >
+                            {availableClasses.length === 0 && <option value="">لا توجد فصول</option>}
+                            {availableClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
                     </div>
                 </div>
 
@@ -307,7 +325,7 @@ const Reports: React.FC = () => {
                     <button 
                         onClick={handlePrintClassReport}
                         disabled={!selectedClass}
-                        className="win-btn-primary flex items-center gap-2 px-8 py-2.5 shadow-md disabled:opacity-50 disabled:shadow-none"
+                        className="btn btn-primary"
                     >
                         <Printer size={18} />
                         {reportType === 'daily' ? 'طباعة كشف الغياب' : 'طباعة التقرير الإحصائي'}
@@ -319,64 +337,74 @@ const Reports: React.FC = () => {
         {/* TAB 2: STUDENT REPORT */}
         {activeTab === 'student' && (
             <div className="space-y-6">
-                 <div className="flex items-center gap-4 pb-6 border-b border-gray-100">
-                    <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
-                        <User size={24} />
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-lg text-slate-800">تقرير متابعة طالب</h3>
-                        <p className="text-gray-500 text-sm">سجل الغياب والتسرب والمخالفات لطالب محدد</p>
-                    </div>
+                
+                {/* --- NEW: QUICK PRINT HEADER --- */}
+                {selectedStudentId && (
+                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex flex-col sm:flex-row justify-between items-center gap-4 animate-fadeIn shadow-sm">
+                      <div className="flex items-center gap-3">
+                         <div className="bg-white p-2 rounded-full text-blue-600 border border-blue-100 shadow-sm">
+                            <FileText size={24} />
+                         </div>
+                         <div>
+                             <h4 className="font-bold text-blue-900 text-lg">{selectedStudentName}</h4>
+                             <p className="text-xs text-blue-600 font-medium">التقرير جاهز للطباعة</p>
+                         </div>
+                      </div>
+                      <button 
+                        onClick={handlePrintStudentReport}
+                        className="btn bg-blue-600 text-white hover:bg-blue-700 shadow-md border-transparent px-8"
+                      >
+                        <Printer size={18} />
+                        طباعة التقرير الآن
+                      </button>
+                   </div>
+                )}
+                {/* ------------------------------- */}
+
+                 <div className="pb-4 border-b border-gray-100">
+                    <h3 className="font-bold text-lg text-slate-800">بيانات التقرير</h3>
+                    <p className="text-gray-500 text-sm">يمكنك تغيير الطالب أو الفترة الزمنية من هنا</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                      <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-600">الصف الدراسي</label>
-                        <div className="relative">
-                            <select 
-                                value={stGrade}
-                                onChange={(e) => setStGrade(e.target.value)}
-                                className="win-input w-full p-2.5 appearance-none outline-none text-sm"
-                            >
-                                {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                            </select>
-                            <ChevronDown className="absolute left-3 top-3 text-gray-400 pointer-events-none" size={16} />
-                        </div>
+                        <select 
+                            value={stGrade}
+                            onChange={(e) => setStGrade(e.target.value)}
+                            className="form-input text-sm"
+                        >
+                            {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                        </select>
                     </div>
                     <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-600">الفصل</label>
-                        <div className="relative">
-                            <select 
-                                value={stClass}
-                                onChange={(e) => setStClass(e.target.value)}
-                                disabled={stAvailableClasses.length === 0}
-                                className="win-input w-full p-2.5 appearance-none outline-none disabled:bg-gray-50 text-sm"
-                            >
-                                {stAvailableClasses.length === 0 && <option value="">لا توجد فصول</option>}
-                                {stAvailableClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                            <ChevronDown className="absolute left-3 top-3 text-gray-400 pointer-events-none" size={16} />
-                        </div>
+                        <select 
+                            value={stClass}
+                            onChange={(e) => setStClass(e.target.value)}
+                            disabled={stAvailableClasses.length === 0}
+                            className="form-input text-sm"
+                        >
+                            {stAvailableClasses.length === 0 && <option value="">لا توجد فصول</option>}
+                            {stAvailableClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
                     </div>
                     <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-600">اختر الطالب</label>
-                         <div className="relative">
-                            <select 
-                                value={selectedStudentId}
-                                onChange={(e) => setSelectedStudentId(e.target.value)}
-                                disabled={availableStudents.length === 0}
-                                className="win-input w-full p-2.5 appearance-none outline-none disabled:bg-gray-50 text-sm"
-                            >
-                                {availableStudents.length === 0 && <option value="">لا يوجد طلاب</option>}
-                                {availableStudents.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                            </select>
-                             <ChevronDown className="absolute left-3 top-3 text-gray-400 pointer-events-none" size={16} />
-                        </div>
+                         <select 
+                            value={selectedStudentId}
+                            onChange={(e) => setSelectedStudentId(e.target.value)}
+                            disabled={availableStudents.length === 0}
+                            className="form-input text-sm font-bold bg-yellow-50 border-yellow-200"
+                        >
+                            {availableStudents.length === 0 && <option value="">لا يوجد طلاب</option>}
+                            {availableStudents.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
                     </div>
                 </div>
 
                 {/* Date Filter for Student */}
-                <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-200/50 mt-2">
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mt-2">
                     <h4 className="text-xs font-bold text-slate-500 mb-3 flex items-center gap-2">
                         <Filter size={14} />
                         تصفية الفترة الزمنية (اختياري)
@@ -388,8 +416,7 @@ const Reports: React.FC = () => {
                                 type="date" 
                                 value={stStartDate}
                                 onChange={(e) => setStStartDate(e.target.value)}
-                                className="win-input w-full p-2 outline-none text-right text-sm"
-                                style={{ direction: 'ltr' }}
+                                className="form-input text-center text-sm"
                             />
                         </div>
                         <div className="space-y-1">
@@ -398,22 +425,10 @@ const Reports: React.FC = () => {
                                 type="date" 
                                 value={stEndDate}
                                 onChange={(e) => setStEndDate(e.target.value)}
-                                className="win-input w-full p-2 outline-none text-right text-sm"
-                                style={{ direction: 'ltr' }}
+                                className="form-input text-center text-sm"
                             />
                         </div>
                     </div>
-                </div>
-
-                 <div className="flex justify-end pt-6 border-t border-gray-100">
-                    <button 
-                        onClick={handlePrintStudentReport}
-                        disabled={!selectedStudentId}
-                        className="bg-slate-800 hover:bg-slate-900 text-white flex items-center gap-2 px-8 py-2.5 rounded-[4px] shadow-md transition-all disabled:opacity-50 disabled:shadow-none font-medium"
-                    >
-                        <Printer size={18} />
-                        طباعة تقرير الطالب
-                    </button>
                 </div>
             </div>
         )}
