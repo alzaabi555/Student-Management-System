@@ -52,7 +52,7 @@ const WelcomeSetup: React.FC<WelcomeSetupProps> = ({ onComplete }) => {
                   value={schoolName}
                   onChange={(e) => setSchoolName(e.target.value)}
                   className="w-full pl-4 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
-                  placeholder="مثال: مدرسة التفوق للتعليم الأساسي"
+                  placeholder="مثال: مدرسة الإبداع للبنين"
                 />
                 <BookOpen className="absolute left-3 top-3.5 text-gray-400 group-focus-within:text-primary transition-colors" size={20} />
               </div>
@@ -67,7 +67,7 @@ const WelcomeSetup: React.FC<WelcomeSetupProps> = ({ onComplete }) => {
                   value={district}
                   onChange={(e) => setDistrict(e.target.value)}
                   className="w-full pl-4 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
-                  placeholder="مثال: محافظة مسقط"
+                  placeholder="مثال: محافظة شمال الباطنة"
                 />
                 <MapPin className="absolute left-3 top-3.5 text-gray-400 group-focus-within:text-primary transition-colors" size={20} />
               </div>

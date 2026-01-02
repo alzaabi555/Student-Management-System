@@ -210,9 +210,9 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
 
   if (grades.length === 0) {
     return (
-        <div className="p-4 md:p-6 h-[calc(100vh-80px)] flex flex-col items-center justify-center text-center">
-            <div className="bg-blue-50 p-6 rounded-full mb-4 animate-bounce">
-                <Layers size={32} className="text-primary md:w-12 md:h-12" />
+        <div className="p-4 md:p-6 h-[calc(100vh-80px)] flex flex-col items-center justify-center text-center bg-white rounded-lg border border-gray-200 shadow-sm m-6">
+            <div className="bg-gray-50 p-6 rounded-full mb-4">
+                <Layers size={32} className="text-gray-400 md:w-12 md:h-12" />
             </div>
             <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-2">لا يوجد هيكل مدرسي</h2>
             <p className="text-sm md:text-base text-gray-500 mb-8 max-w-md leading-relaxed">
@@ -220,7 +220,7 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
             </p>
             <button 
               onClick={() => onNavigate('structure')}
-              className="bg-primary hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-all flex items-center gap-2 text-sm md:text-base"
+              className="win-btn-primary flex items-center gap-2 text-sm md:text-base"
             >
               <span>الذهاب لإضافة الصفوف والفصول</span>
               <ArrowRight size={20} />
@@ -232,16 +232,16 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
   return (
     <div className="p-3 md:p-6 h-[calc(100vh-80px)] flex flex-col">
       {/* Top Header & Filters */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 md:mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
         <div>
-           <h2 className="text-xl md:text-2xl font-bold text-gray-800">إدارة الطلاب</h2>
+           <h2 className="text-xl md:text-2xl font-bold text-slate-800">إدارة الطلاب</h2>
            <p className="text-xs md:text-sm text-gray-500">عرض وتعديل بيانات الطلاب حسب الفصل</p>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
              <button 
             onClick={() => { setMode('SINGLE'); setIsModalOpen(true); }}
             disabled={classes.length === 0}
-            className="flex-1 md:flex-none bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 disabled:opacity-50 text-sm md:text-base"
+            className="flex-1 md:flex-none win-btn-primary flex items-center justify-center gap-2 text-sm md:text-base disabled:opacity-50"
             >
             <Plus size={18} />
             <span className="whitespace-nowrap">إضافة طلاب</span>
@@ -250,8 +250,8 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
       </div>
 
       {/* Filters Bar */}
-      <div className="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-gray-100 mb-4 flex flex-col md:flex-row gap-3 md:gap-4 items-center">
-        <div className="flex items-center gap-2 w-full md:w-auto text-gray-700 font-bold text-xs md:text-sm whitespace-nowrap">
+      <div className="bg-white p-3 md:p-4 rounded-lg border border-gray-200/60 shadow-sm mb-4 flex flex-col md:flex-row gap-3 md:gap-4 items-center">
+        <div className="flex items-center gap-2 w-full md:w-auto text-gray-700 font-medium text-xs md:text-sm whitespace-nowrap">
             <Filter size={16} className="text-primary" />
             <span>تصفية القائمة:</span>
         </div>
@@ -260,7 +260,7 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
             <select 
                 value={viewGradeId}
                 onChange={(e) => setViewGradeId(e.target.value)}
-                className="flex-1 md:w-48 p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-primary outline-none"
+                className="flex-1 md:w-48 p-2 bg-white border border-gray-300 rounded-[4px] text-xs md:text-sm focus:border-primary outline-none"
             >
                 {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
@@ -269,7 +269,7 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
                 value={viewClassId}
                 onChange={(e) => setViewClassId(e.target.value)}
                 disabled={viewClasses.length === 0}
-                className="flex-1 md:w-32 p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-primary outline-none disabled:bg-gray-100"
+                className="flex-1 md:w-32 p-2 bg-white border border-gray-300 rounded-[4px] text-xs md:text-sm focus:border-primary outline-none disabled:bg-gray-100"
             >
                 {viewClasses.length === 0 && <option value="">لا توجد فصول</option>}
                 {viewClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -282,14 +282,14 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
             placeholder="بحث داخل هذا الفصل..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-8 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-primary transition-colors text-xs md:text-sm"
+            className="w-full pl-8 pr-4 py-2 bg-white border border-gray-300 rounded-[4px] focus:outline-none focus:border-primary focus:border-b-2 transition-all text-xs md:text-sm"
           />
           <Search className="absolute left-2.5 top-2.5 text-gray-400" size={16} />
         </div>
       </div>
 
-      {/* List - Virtualized */}
-      <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+      {/* List - Virtualized with Win11 List Style */}
+      <div className="flex-1 bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden flex flex-col">
         {!viewClassId ? (
             <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
                 الرجاء اختيار صف وفصل لعرض الطلاب
@@ -303,42 +303,42 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
                 style={{ height: '100%', direction: 'rtl' }}
                 data={filteredStudents}
                 fixedHeaderContent={() => (
-                    <tr className="bg-gray-50 border-b border-gray-100">
-                        <th className="p-3 md:p-4 text-[10px] md:text-xs font-bold text-gray-500 text-right w-1/3">اسم الطالب</th>
-                        <th className="p-3 md:p-4 text-[10px] md:text-xs font-bold text-gray-500 text-right w-1/3">ولي الأمر</th>
-                        <th className="p-3 md:p-4 text-[10px] md:text-xs font-bold text-gray-500 text-center w-1/3">إجراءات</th>
+                    <tr className="bg-gray-50/50 border-b border-gray-200 backdrop-blur-sm">
+                        <th className="p-3 md:p-4 text-[11px] md:text-xs font-semibold text-gray-600 text-right w-1/3">اسم الطالب</th>
+                        <th className="p-3 md:p-4 text-[11px] md:text-xs font-semibold text-gray-600 text-right w-1/3">ولي الأمر</th>
+                        <th className="p-3 md:p-4 text-[11px] md:text-xs font-semibold text-gray-600 text-center w-1/3">إجراءات</th>
                     </tr>
                 )}
                 itemContent={(index, student) => (
                     <>
-                        <td className="p-3 md:p-4 border-b border-gray-50">
+                        <td className="p-3 md:p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors">
                             <div className="flex items-center gap-2 md:gap-3">
-                                <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                                    <User size={14} className="md:w-4 md:h-4" />
+                                <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center shrink-0 border border-gray-200">
+                                    <User size={14} />
                                 </div>
-                                <span className="font-medium text-gray-800 text-xs md:text-sm truncate">{student.name}</span>
+                                <span className="font-medium text-slate-800 text-xs md:text-sm truncate">{student.name}</span>
                             </div>
                         </td>
-                        <td className="p-3 md:p-4 border-b border-gray-50">
+                        <td className="p-3 md:p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors">
                             <div className="flex items-center gap-1 md:gap-2 text-gray-500 text-[10px] md:text-sm">
                                 <span>{student.parentPhone}</span>
                                 <Phone size={12} className="md:w-3.5 md:h-3.5" />
                             </div>
                         </td>
-                        <td className="p-3 md:p-4 text-center border-b border-gray-50 flex justify-center gap-2">
+                        <td className="p-3 md:p-4 text-center border-b border-gray-100 hover:bg-gray-50 transition-colors flex justify-center gap-2">
                             <button 
                                 onClick={() => sendWhatsApp(student)}
-                                className="p-1.5 md:p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                className="p-1.5 md:p-2 text-green-600 hover:bg-green-50 rounded-[4px] border border-transparent hover:border-green-200 transition-all"
                                 title="مراسلة ولي الأمر"
                             >
-                                <Share2 size={16} className="md:w-5 md:h-5" />
+                                <Share2 size={16} className="md:w-4 md:h-4" />
                             </button>
                             <button 
                                 onClick={() => handleDeleteStudent(student.id)}
-                                className="p-1.5 md:p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                className="p-1.5 md:p-2 text-red-500 hover:bg-red-50 rounded-[4px] border border-transparent hover:border-red-200 transition-all"
                                 title="حذف الطالب"
                             >
-                                <Trash2 size={16} className="md:w-5 md:h-5" />
+                                <Trash2 size={16} className="md:w-4 md:h-4" />
                             </button>
                         </td>
                     </>
@@ -347,45 +347,45 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
         )}
         
         {viewClassId && filteredStudents.length > 0 && (
-             <div className="p-2 md:p-3 bg-gray-50 border-t border-gray-100 text-[10px] md:text-xs text-gray-500 text-center">
+             <div className="p-2 md:p-3 bg-gray-50 border-t border-gray-200 text-[10px] md:text-xs text-gray-500 text-center">
                 إجمالي الطلاب في هذا الفصل: {filteredStudents.length}
              </div>
         )}
       </div>
 
-      {/* Add Modal */}
+      {/* Add Modal - Windows 11 Dialog Style */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-fadeIn overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-md shadow-flyout border border-gray-200 animate-scaleIn overflow-hidden flex flex-col max-h-[90vh]">
             {/* Modal Header */}
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
-              <h3 className="text-lg md:text-xl font-bold text-gray-800">إضافة طلاب</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={24} />
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
+              <h3 className="text-lg font-bold text-slate-800">إضافة طلاب</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-500 hover:bg-gray-200 rounded p-1 transition-colors">
+                <X size={20} />
               </button>
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-gray-100 shrink-0">
+            <div className="flex border-b border-gray-200 shrink-0 p-1 bg-gray-50">
                 <button 
                     onClick={() => setMode('SINGLE')}
-                    className={`flex-1 py-3 text-sm font-bold transition-colors flex items-center justify-center gap-2 ${mode === 'SINGLE' ? 'text-primary border-b-2 border-primary bg-blue-50/50' : 'text-gray-500 hover:bg-gray-50'}`}
+                    className={`flex-1 py-1.5 text-sm font-medium rounded transition-all flex items-center justify-center gap-2 ${mode === 'SINGLE' ? 'bg-white shadow-sm text-primary' : 'text-gray-500 hover:text-gray-700'}`}
                 >
-                    <User size={18} />
+                    <User size={16} />
                     إضافة فردية
                 </button>
                 <button 
                     onClick={() => setMode('BULK')}
-                    className={`flex-1 py-3 text-sm font-bold transition-colors flex items-center justify-center gap-2 ${mode === 'BULK' ? 'text-green-600 border-b-2 border-green-600 bg-green-50/50' : 'text-gray-500 hover:bg-gray-50'}`}
+                    className={`flex-1 py-1.5 text-sm font-medium rounded transition-all flex items-center justify-center gap-2 ${mode === 'BULK' ? 'bg-white shadow-sm text-green-700' : 'text-gray-500 hover:text-gray-700'}`}
                 >
-                    <FileSpreadsheet size={18} />
+                    <FileSpreadsheet size={16} />
                     استيراد إكسل
                 </button>
             </div>
             
-            <div className="p-4 md:p-6 overflow-y-auto">
+            <div className="p-4 md:p-6 overflow-y-auto bg-white">
                 {/* Location Selector (Common) */}
-                <div className="bg-blue-50/50 p-3 md:p-4 rounded-xl border border-blue-100 mb-6">
+                <div className="bg-blue-50/30 p-3 md:p-4 rounded-lg border border-blue-100/50 mb-6">
                     <h4 className="text-xs font-bold text-blue-800 uppercase mb-3 flex items-center gap-1">
                         <Layers size={14} />
                         المكان المستهدف
@@ -396,7 +396,7 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
                             <select 
                                 value={newStudentGrade}
                                 onChange={e => setNewStudentGrade(e.target.value)}
-                                className="w-full p-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary outline-none"
+                                className="w-full p-2 border border-gray-300 rounded-[4px] text-sm bg-white focus:border-primary outline-none"
                             >
                                 {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                             </select>
@@ -407,7 +407,7 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
                                 value={newStudentClass}
                                 onChange={e => setNewStudentClass(e.target.value)}
                                 disabled={modalClasses.length === 0}
-                                className="w-full p-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary outline-none disabled:bg-gray-100"
+                                className="w-full p-2 border border-gray-300 rounded-[4px] text-sm bg-white focus:border-primary outline-none disabled:bg-gray-100"
                             >
                                 {modalClasses.length === 0 && <option>لا توجد فصول</option>}
                                 {modalClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -426,7 +426,7 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
                                 required
                                 value={newStudentName}
                                 onChange={e => setNewStudentName(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:outline-none"
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-[4px] border-b-2 border-b-gray-400 focus:border-b-primary focus:outline-none transition-colors"
                                 placeholder="مثال: محمد أحمد علي .."
                             />
                             <User className="absolute left-3 top-2.5 text-gray-400" size={18} />
@@ -441,25 +441,27 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
                                 required
                                 value={newStudentPhone}
                                 onChange={e => setNewStudentPhone(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:outline-none text-left"
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-[4px] border-b-2 border-b-gray-400 focus:border-b-primary focus:outline-none text-left transition-colors"
                                 placeholder="9xxxxxxx"
                             />
                             <Phone className="absolute left-3 top-2.5 text-gray-400" size={18} />
                             </div>
                         </div>
 
-                        <button 
-                            type="submit" 
-                            disabled={!newStudentClass}
-                            className="w-full py-3 text-white bg-primary hover:bg-blue-700 rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-colors flex justify-center items-center gap-2 disabled:opacity-50 mt-4"
-                        >
-                            <Save size={18} />
-                            حفظ الطالب
-                        </button>
+                        <div className="pt-2">
+                            <button 
+                                type="submit" 
+                                disabled={!newStudentClass}
+                                className="win-btn-primary w-full flex justify-center items-center gap-2 disabled:opacity-50"
+                            >
+                                <Save size={18} />
+                                حفظ الطالب
+                            </button>
+                        </div>
                     </form>
                 ) : (
                     <div className="space-y-4">
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800">
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
                             <h4 className="font-bold flex items-center gap-2 mb-2">
                                 <Download size={16} />
                                 تعليمات الاستيراد:
@@ -475,7 +477,7 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
                             </button>
                         </div>
 
-                        <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                        <div className="border border-dashed border-gray-400 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer bg-gray-50/50" onClick={() => fileInputRef.current?.click()}>
                             <input 
                                 type="file" 
                                 ref={fileInputRef}
@@ -483,15 +485,15 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
                                 accept=".xlsx, .xls"
                                 className="hidden"
                             />
-                            <Upload className="mx-auto text-gray-400 mb-2" size={32} />
-                            <p className="text-sm font-medium text-gray-600">
+                            <Upload className="mx-auto text-gray-500 mb-2" size={24} />
+                            <p className="text-sm font-medium text-gray-700">
                                 {importFile ? importFile.name : 'اضغط هنا لرفع ملف Excel'}
                             </p>
                             <p className="text-xs text-gray-400 mt-1">.xlsx, .xls</p>
                         </div>
 
                         {importPreview.length > 0 && (
-                            <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
                                 <p className="text-green-800 font-bold">تم العثور على {importPreview.length} طالب جاهز للاستيراد</p>
                             </div>
                         )}
@@ -499,7 +501,7 @@ const StudentsManager: React.FC<StudentsManagerProps> = ({ onNavigate }) => {
                         <button 
                             onClick={handleBulkImport}
                             disabled={!newStudentClass || importPreview.length === 0}
-                            className="w-full py-3 text-white bg-green-600 hover:bg-green-700 rounded-xl font-bold shadow-lg shadow-green-900/20 transition-colors flex justify-center items-center gap-2 disabled:opacity-50 mt-4"
+                            className="w-full py-2 text-white bg-green-600 hover:bg-green-700 rounded-[4px] font-medium shadow-sm transition-colors flex justify-center items-center gap-2 disabled:opacity-50 mt-4"
                         >
                             <Save size={18} />
                             استيراد القائمة

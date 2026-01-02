@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Filter, Save, Check, X, AlertTriangle, DoorOpen, Search, Printer, Share2 } from 'lucide-react';
+import { Filter, Save, Check, X, AlertTriangle, DoorOpen, Search, Share2 } from 'lucide-react';
 import { students, grades, classes, getAttendance, saveAttendance, getAttendanceRecord, getSchoolSettings } from '../services/dataService';
 import { AttendanceStatus, Student } from '../types';
 import { TableVirtuoso } from 'react-virtuoso';
-import { printAttendanceSheet } from '../services/printService';
 
 interface AttendanceSheetProps {
   onNavigate: (page: string) => void;
@@ -128,73 +127,46 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({ onNavigate }) => {
     }
   };
 
-  const handlePrint = () => {
-    if (filteredStudents.length === 0) {
-        alert("لا يوجد بيانات للطباعة");
-        return;
-    }
-
-    const gradeName = grades.find(g => g.id === selectedGrade)?.name || '';
-    const className = classes.find(c => c.id === selectedClass)?.name || '';
-
-    printAttendanceSheet(
-      schoolName,
-      gradeName,
-      className,
-      currentDate,
-      filteredStudents,
-      localAttendance
-    );
-  };
-
   if (grades.length === 0) {
-      return <div className="p-8 text-center">الرجاء إضافة صفوف وفصول أولاً من القائمة الجانبية.</div>;
+      return <div className="p-8 text-center text-gray-500">الرجاء إضافة صفوف وفصول أولاً من القائمة الجانبية.</div>;
   }
 
   return (
-    <div className="p-6 h-[calc(100vh-80px)] flex flex-col relative">
+    <div className="p-2 md:p-6 h-[calc(100vh-80px)] flex flex-col relative">
       <div className="flex flex-row justify-between items-center gap-4 mb-4">
         <div>
-           <h2 className="text-2xl font-bold text-gray-800">تسجيل الحضور اليومي</h2>
+           <h2 className="text-xl md:text-2xl font-bold text-slate-900">تسجيل الحضور اليومي</h2>
            <p className="text-sm text-gray-500">إدارة {schoolName}</p>
         </div>
         <div className="flex gap-2 w-auto">
              <button 
                onClick={saveAll}
                disabled={isSaving}
-               className="bg-primary hover:bg-blue-700 text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-all flex items-center justify-center gap-2"
+               className="win-btn-primary flex items-center justify-center gap-2 shadow-sm"
              >
                <Save size={18} />
                {isSaving ? 'جاري الحفظ...' : 'حفظ السجل'}
              </button>
-             <button 
-               onClick={handlePrint}
-               className="bg-gray-800 hover:bg-black text-white px-6 py-2 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95"
-               title="طباعة الكشف أو حفظه كملف PDF"
-             >
-               <Printer size={18} />
-               <span>طباعة / حفظ PDF</span>
-             </button>
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-4 flex flex-row gap-3">
-        <div className="flex items-center gap-2 text-gray-700 font-bold text-sm">
+      <div className="bg-white p-3 md:p-4 rounded-lg border border-gray-200 shadow-sm mb-4 flex flex-row gap-3 items-center">
+        <div className="flex items-center gap-2 text-gray-700 font-medium text-sm hidden md:flex">
             <Filter size={16} className="text-primary" />
             <span>خيارات العرض:</span>
         </div>
         
-        <div className="flex gap-4 flex-1">
+        <div className="flex gap-2 md:gap-4 flex-1">
             <input 
                 type="date"
                 value={currentDate}
                 onChange={(e) => setCurrentDate(e.target.value)}
-                className="w-auto p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none"
+                className="w-auto p-2 bg-white border border-gray-300 rounded-[4px] text-sm focus:border-primary outline-none"
             />
             <select 
                 value={selectedGrade}
                 onChange={(e) => setSelectedGrade(e.target.value)}
-                className="p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none"
+                className="p-2 bg-white border border-gray-300 rounded-[4px] text-sm focus:border-primary outline-none"
             >
                 {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
@@ -202,26 +174,26 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({ onNavigate }) => {
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
                 disabled={availableClasses.length === 0}
-                className="p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none disabled:bg-gray-100"
+                className="p-2 bg-white border border-gray-300 rounded-[4px] text-sm focus:border-primary outline-none disabled:bg-gray-100"
             >
                 {availableClasses.length === 0 && <option value="">لا توجد فصول</option>}
                 {availableClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
         </div>
 
-        <div className="relative w-64">
+        <div className="relative w-40 md:w-64">
           <input
             type="text"
             placeholder="بحث عن طالب..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-8 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-primary transition-colors text-sm"
+            className="w-full pl-8 pr-4 py-2 bg-white border border-gray-300 rounded-[4px] focus:outline-none focus:border-primary focus:border-b-2 text-sm transition-all"
           />
           <Search className="absolute left-2.5 top-2.5 text-gray-400" size={16} />
         </div>
       </div>
 
-      <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+      <div className="flex-1 bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden flex flex-col">
          {!selectedClass ? (
             <div className="flex-1 flex items-center justify-center text-gray-400">الرجاء اختيار فصل</div>
          ) : filteredStudents.length === 0 ? (
@@ -231,61 +203,61 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({ onNavigate }) => {
                 style={{ height: '100%', direction: 'rtl' }}
                 data={filteredStudents}
                 fixedHeaderContent={() => (
-                    <tr className="bg-gray-50 border-b border-gray-100">
-                        <th className="p-3 text-right text-xs font-bold text-gray-500 w-1/4">الطالب</th>
-                        <th className="p-3 text-center text-xs font-bold text-gray-500 w-1/2">حالة الحضور</th>
-                        <th className="p-3 text-center text-xs font-bold text-gray-500 w-1/4">إجراءات</th>
+                    <tr className="bg-gray-50/80 backdrop-blur-sm border-b border-gray-200">
+                        <th className="p-3 text-right text-xs font-semibold text-gray-600 w-1/4">الطالب</th>
+                        <th className="p-3 text-center text-xs font-semibold text-gray-600 w-1/2">حالة الحضور</th>
+                        <th className="p-3 text-center text-xs font-semibold text-gray-600 w-1/4">إجراءات</th>
                     </tr>
                 )}
                 itemContent={(index, student) => {
                     const status = localAttendance[student.id] || AttendanceStatus.PRESENT;
                     return (
                     <>
-                        <td className="p-3 border-b border-gray-50">
-                            <div className="font-bold text-gray-800 text-sm">{student.name}</div>
+                        <td className="p-3 border-b border-gray-100">
+                            <div className="font-semibold text-slate-800 text-sm">{student.name}</div>
                             <div className="text-[10px] text-gray-400">{student.parentPhone}</div>
                         </td>
-                        <td className="p-3 border-b border-gray-50 text-center">
-                            <div className="flex justify-center gap-2">
+                        <td className="p-3 border-b border-gray-100 text-center">
+                            <div className="flex justify-center gap-1 md:gap-2">
                                 <button 
                                     onClick={() => handleStatusChange(student.id, AttendanceStatus.PRESENT)}
-                                    className={`p-2 rounded-lg transition-all ${status === AttendanceStatus.PRESENT ? 'bg-green-100 text-green-700 ring-2 ring-green-500' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                                    className={`p-2 rounded-[4px] transition-all border ${status === AttendanceStatus.PRESENT ? 'bg-green-100 border-green-300 text-green-700' : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'}`}
                                     title="حاضر"
                                 >
                                     <Check size={16} />
                                 </button>
                                 <button 
                                     onClick={() => handleStatusChange(student.id, AttendanceStatus.ABSENT)}
-                                    className={`p-2 rounded-lg transition-all ${status === AttendanceStatus.ABSENT ? 'bg-red-100 text-red-700 ring-2 ring-red-500' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                                    className={`p-2 rounded-[4px] transition-all border ${status === AttendanceStatus.ABSENT ? 'bg-red-100 border-red-300 text-red-700' : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'}`}
                                     title="غائب"
                                 >
                                     <X size={16} />
                                 </button>
                                 <button 
                                     onClick={() => handleStatusChange(student.id, AttendanceStatus.TRUANT)}
-                                    className={`p-2 rounded-lg transition-all ${status === AttendanceStatus.TRUANT ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-500' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                                    className={`p-2 rounded-[4px] transition-all border ${status === AttendanceStatus.TRUANT ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'}`}
                                     title="تسرب حصة"
                                 >
                                     <AlertTriangle size={16} />
                                 </button>
                                 <button 
                                     onClick={() => handleStatusChange(student.id, AttendanceStatus.ESCAPE)}
-                                    className={`p-2 rounded-lg transition-all ${status === AttendanceStatus.ESCAPE ? 'bg-purple-100 text-purple-700 ring-2 ring-purple-500' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                                    className={`p-2 rounded-[4px] transition-all border ${status === AttendanceStatus.ESCAPE ? 'bg-purple-100 border-purple-300 text-purple-700' : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'}`}
                                     title="هروب"
                                 >
                                     <DoorOpen size={16} />
                                 </button>
                             </div>
                         </td>
-                        <td className="p-3 border-b border-gray-50 text-center">
+                        <td className="p-3 border-b border-gray-100 text-center">
                              <button 
                                 onClick={() => sendWhatsApp(student)}
                                 disabled={status === AttendanceStatus.PRESENT}
                                 className={`
-                                    p-2 rounded-xl transition-all flex items-center justify-center gap-2 text-xs font-bold w-full
+                                    py-1.5 px-3 rounded-[4px] transition-all flex items-center justify-center gap-2 text-xs font-semibold w-full border
                                     ${status === AttendanceStatus.PRESENT 
-                                        ? 'bg-gray-100 text-gray-300 cursor-not-allowed' 
-                                        : 'bg-green-50 text-green-600 hover:bg-green-100 hover:shadow-sm'}
+                                        ? 'bg-gray-100 border-transparent text-gray-300 cursor-not-allowed' 
+                                        : 'bg-white border-green-200 text-green-600 hover:bg-green-50'}
                                 `}
                              >
                                 <Share2 size={14} />
@@ -298,8 +270,8 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({ onNavigate }) => {
          )}
       </div>
       
-      <div className="mt-4 bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex justify-around text-sm font-bold">
-         <span className="text-gray-500">الطلاب: {filteredStudents.length}</span>
+      <div className="mt-4 bg-white p-3 rounded-lg border border-gray-200 shadow-sm flex justify-around text-sm font-medium">
+         <span className="text-gray-600">الطلاب: {filteredStudents.length}</span>
          <span className="text-green-600">حضور: {Object.values(localAttendance).filter(s => s === AttendanceStatus.PRESENT).length}</span>
          <span className="text-red-600">غياب: {Object.values(localAttendance).filter(s => s === AttendanceStatus.ABSENT).length}</span>
       </div>
