@@ -6,7 +6,8 @@ const KEYS = {
   CLASSES: 'madrasati_classes',
   STUDENTS: 'madrasati_students',
   ATTENDANCE: 'madrasati_attendance',
-  SETTINGS: 'school_settings'
+  SETTINGS: 'school_settings',
+  ASSETS: 'school_assets' // New Key for Images
 };
 
 // --- Helper to load data ---
@@ -50,6 +51,30 @@ export const getSchoolSettings = () => {
     return JSON.parse(settingsStr);
   }
   return null;
+};
+
+// --- School Assets (Signatures & Stamps) Management ---
+export interface SchoolAssets {
+  headerLogo?: string;   // الشعار الرسمي
+  committeeSig?: string; // base64
+  principalSig?: string; // base64
+  schoolStamp?: string;  // base64
+}
+
+export const saveSchoolAssets = (assets: SchoolAssets) => {
+  const current = getSchoolAssets();
+  const updated = { ...current, ...assets };
+  try {
+    localStorage.setItem(KEYS.ASSETS, JSON.stringify(updated));
+  } catch (e) {
+    console.error("Storage full for images", e);
+    alert("عذراً، مساحة التخزين ممتلئة. حاول استخدام صور بحجم أصغر.");
+  }
+  return updated;
+};
+
+export const getSchoolAssets = (): SchoolAssets => {
+  return loadData(KEYS.ASSETS, {});
 };
 
 // --- Grade Management ---
@@ -187,4 +212,60 @@ export const getAbsentStudentsForDate = (date: string): Student[] => {
 
 export const getTruantStudentsForDate = (date: string): Student[] => {
     return students.filter(s => getAttendance(date, s.id) === AttendanceStatus.TRUANT);
+};
+
+// --- Reporting Functions ---
+
+// Get attendance history for a specific student, optionally within a date range
+export const getStudentHistory = (studentId: string, startDate?: string, endDate?: string): AttendanceRecord[] => {
+  return Object.values(attendanceStore)
+    .filter(record => {
+      if (record.studentId !== studentId) return false;
+      if (record.status === AttendanceStatus.PRESENT) return false;
+      
+      // Date Filtering
+      if (startDate && record.date < startDate) return false;
+      if (endDate && record.date > endDate) return false;
+      
+      return true;
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+};
+
+// Get aggregated stats for all students in a class over a period
+export interface StudentPeriodStats {
+  student: Student;
+  absentCount: number;
+  truantCount: number; // Includes both Truant and Escape for simplicity in summary, or separated
+  escapeCount: number;
+}
+
+export const getClassPeriodStats = (classId: string, startDate: string, endDate: string): StudentPeriodStats[] => {
+    const classStudents = students.filter(s => s.classId === classId);
+    
+    return classStudents.map(student => {
+        let absent = 0;
+        let truant = 0;
+        let escape = 0;
+
+        // Iterate through all records for this student (Not efficient O(N), but fine for local data scale)
+        // A more efficient way if we had an index by date, but simple loop is robust here.
+        Object.values(attendanceStore).forEach(record => {
+            if (record.studentId === student.id && record.date >= startDate && record.date <= endDate) {
+                if (record.status === AttendanceStatus.ABSENT) absent++;
+                if (record.status === AttendanceStatus.TRUANT) truant++;
+                if (record.status === AttendanceStatus.ESCAPE) escape++;
+            }
+        });
+
+        return {
+            student,
+            absentCount: absent,
+            truantCount: truant,
+            escapeCount: escape
+        };
+    }).filter(stat => stat.absentCount > 0 || stat.truantCount > 0 || stat.escapeCount > 0); 
+    // Only return students with at least one violation, OR remove filter to show all. 
+    // Let's keep all students if the user wants a full report, but maybe better to sort.
+    // Let's actually return ALL students so the teacher sees who has 0 absence too.
 };
