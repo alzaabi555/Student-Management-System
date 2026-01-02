@@ -1,7 +1,10 @@
+
 {
   "name": "madrasati-app",
   "private": true,
   "version": "2.0.0",
+  "description": "نظام متكامل لتسجيل الغياب والتسرب المدرسي وإرسال إشعارات لأولياء الأمور عبر واتساب",
+  "author": "Madrasati Systems",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -60,9 +63,6 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "نظام مدرستي",
-      "installerIcon": "public/assets/icon.ico",
-      "uninstallerIcon": "public/assets/icon.ico",
-      "installerHeaderIcon": "public/assets/icon.ico",
       "deleteAppDataOnUninstall": true,
       "runAfterFinish": true,
       "language": "1025"
