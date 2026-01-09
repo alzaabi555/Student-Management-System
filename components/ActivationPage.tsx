@@ -35,8 +35,25 @@ const ActivationPage: React.FC<ActivationPageProps> = ({ onSuccess }) => {
         }
     };
 
-    const whatsappMessage = `السلام عليكم، أرغب في تفعيل برنامج مدرستي.\nرقم جهازي هو: ${deviceId}`;
-    const whatsappLink = `https://wa.me/96898344555?text=${encodeURIComponent(whatsappMessage)}`;
+    const handleContactSupport = async () => {
+        const message = `السلام عليكم، أرغب في تفعيل برنامج مدرستي.\nرقم جهازي هو: ${deviceId}`;
+        const phone = '96898344555';
+        
+        // استخدام بروتوكول whatsapp://send للتطبيق المكتبي
+        const url = `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}`;
+        
+        if (window.electron && window.electron.openExternal) {
+           try {
+             await window.electron.openExternal(url);
+           } catch (err) {
+             console.error('Failed to open external link:', err);
+             alert('تعذر فتح واتساب. تأكد من تثبيت التطبيق.');
+           }
+        } else {
+           // Fallback للمتصفح العادي
+           window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+        }
+    };
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-gray-100 font-sans" dir="rtl">
@@ -107,15 +124,13 @@ const ActivationPage: React.FC<ActivationPageProps> = ({ onSuccess }) => {
 
                     {/* Support Link */}
                     <div className="text-center pt-4 border-t border-gray-100">
-                        <a 
-                            href={whatsappLink} 
-                            target="_blank" 
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-2 text-sm text-green-600 font-bold hover:text-green-700 hover:underline"
+                        <button 
+                            onClick={handleContactSupport}
+                            className="inline-flex items-center gap-2 text-sm text-green-600 font-bold hover:text-green-700 hover:underline bg-transparent border-none cursor-pointer"
                         >
                             <MessageCircle size={18} />
                             تواصل مع المطور للحصول على الكود
-                        </a>
+                        </button>
                     </div>
                 </div>
                 
