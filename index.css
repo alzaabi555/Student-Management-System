@@ -1,16 +1,19 @@
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Reset & Base */
 :root {
-  --primary-color: #1d4ed8; /* blue-700 */
-  --primary-hover: #1e40af; /* blue-800 */
-  --bg-color: #f3f4f6;
-  --text-color: #1e293b;
-  --border-color: #cbd5e1; /* Changed to slate-300 for better visibility */
+  --primary-color: #4f46e5; /* brand-600 */
+  --primary-hover: #4338ca; /* brand-700 */
+  --bg-color: #f8fafc; /* slate-50 */
+  --text-color: #0f172a; /* slate-900 */
 }
 
 body {
   margin: 0;
-  font-family: 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Segoe UI', 'Tajawal', Tahoma, Geneva, Verdana, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg-color);
@@ -18,10 +21,10 @@ body {
   direction: rtl;
 }
 
-/* Scrollbar Styling */
+/* Scrollbar Styling - Thinner and cleaner */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -34,51 +37,49 @@ body {
   background-color: #94a3b8;
 }
 
-/* --- Components Classes (Standard CSS) --- */
+/* --- Components Classes --- */
 
-/* Card Styling - Updated for "Frame" look */
+/* Enterprise Card Styling */
 .card {
   background-color: white;
-  border: 1px solid #cbd5e1; /* Stronger border color */
-  border-radius: 0.75rem; /* 12px */
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); /* Soft shadow for protrusion */
-  overflow: hidden;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  border: 1px solid #e2e8f0; /* slate-200 - subtle border */
+  border-radius: 1rem; /* 16px */
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05); /* Very soft shadow */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Optional: Slight hover effect for interactive cards if needed elsewhere, 
-   but kept subtle to maintain the "framed" look */
 .card:hover {
-  border-color: #94a3b8;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  border-color: #cbd5e1;
 }
 
-/* Form Input Styling */
+/* Modern Inputs */
 .form-input {
   display: block;
   width: 100%;
-  height: 2.75rem; /* 44px */
+  height: 2.75rem;
   padding: 0.5rem 1rem;
-  font-size: 0.875rem; /* 14px */
-  font-family: inherit;
-  line-height: 1.25rem;
-  color: #1f2937;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1e293b;
   background-color: #ffffff;
   border: 1px solid #cbd5e1;
-  border-radius: 0.5rem; /* 8px */
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-  box-sizing: border-box; /* Important so padding doesn't affect width */
+  border-radius: 0.75rem; /* More rounded */
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .form-input:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1); /* Soft focus ring */
 }
 
 .form-input:disabled {
   background-color: #f1f5f9;
   color: #94a3b8;
   cursor: not-allowed;
+  border-color: #e2e8f0;
 }
 
 /* Button Base */
@@ -86,62 +87,76 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 2.75rem; /* 44px */
+  height: 2.75rem;
   padding-left: 1.5rem;
   padding-right: 1.5rem;
-  border-radius: 0.5rem;
-  font-weight: 700;
+  border-radius: 0.75rem;
+  font-weight: 600;
   font-size: 0.875rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   gap: 0.5rem;
   border: 1px solid transparent;
   user-select: none;
+  letter-spacing: 0.01em;
 }
 
 .btn:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: not-allowed;
   transform: none;
 }
 
-/* Primary Button */
+/* Primary Button - Gradient & Shadow */
 .btn-primary {
-  background-color: var(--primary-color);
+  background: linear-gradient(135deg, var(--primary-color) 0%, #4338ca 100%);
   color: white;
+  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3);
 }
+
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--primary-hover);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+  box-shadow: 0 8px 10px -1px rgba(79, 70, 229, 0.4);
 }
 
 /* Secondary Button */
 .btn-secondary {
   background-color: white;
-  color: #374151;
-  border-color: #d1d5db;
+  color: #334155;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
+
 .btn-secondary:hover:not(:disabled) {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+/* Utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 /* Print Handling */
 @media print {
   .no-print { display: none !important; }
   body { background-color: white; }
-  .card { border: none; box-shadow: none; }
+  .card { border: none; box-shadow: none; border-radius: 0; }
 }
 
-/* Utility Animations */
+/* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-fadeIn {
-  animation: fadeIn 0.3s ease-out forwards;
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }

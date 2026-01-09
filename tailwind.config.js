@@ -14,18 +14,27 @@ export default {
         sans: ['Tajawal', 'Segoe UI', 'sans-serif'],
       },
       colors: {
-        // تعريف ألوان النظام القياسية
-        primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
+        // لوحة ألوان احترافية (Modern Enterprise Theme)
+        brand: {
+          50: '#eef2ff',
+          100: '#e0e7ff',
+          200: '#c7d2fe',
+          300: '#a5b4fc',
+          400: '#818cf8',
+          500: '#6366f1', // Primary Indigo
+          600: '#4f46e5', // Darker Indigo (Main Action)
+          700: '#4338ca',
+          800: '#3730a3',
+          900: '#312e81',
+          950: '#1e1b4b',
         },
-        slate: {
-          800: '#1e293b',
-          900: '#0f172a',
+        accent: {
+          500: '#0ea5e9', // Sky blue for info/secondary
         }
+      },
+      boxShadow: {
+        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+        'glow': '0 0 15px rgba(99, 102, 241, 0.3)',
       }
     },
   },

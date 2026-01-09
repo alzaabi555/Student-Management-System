@@ -67,7 +67,6 @@ const App: React.FC = () => {
   };
 
   const handleSetupComplete = async () => {
-     // Re-fetch settings after setup
      const settings = await getSchoolSettings();
      if (settings) {
         setSchoolInfo(settings);
@@ -75,7 +74,6 @@ const App: React.FC = () => {
      }
   };
 
-  // Handler to open report for a specific student
   const handleOpenStudentReport = (studentId: string) => {
     setReportStudentId(studentId);
     setPage('reports');
@@ -83,19 +81,17 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-        <div className="flex flex-col items-center justify-center h-screen bg-gray-100 text-slate-600 gap-4">
-            <Loader2 size={48} className="animate-spin text-blue-600" />
-            <p className="font-bold text-lg">جاري تحميل النظام...</p>
+        <div className="flex flex-col items-center justify-center h-screen bg-brand-50 text-brand-700 gap-4">
+            <Loader2 size={48} className="animate-spin text-brand-600" />
+            <p className="font-bold text-lg tracking-wide">جاري تحميل النظام...</p>
         </div>
     );
   }
 
-  // --- Step 1: Activation Check ---
   if (!isActivated) {
       return <ActivationPage onSuccess={handleActivationSuccess} />;
   }
 
-  // --- Step 2: Setup Check ---
   if (!isSetupComplete) {
     return <WelcomeSetup onComplete={handleSetupComplete} />;
   }
@@ -115,9 +111,9 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-100 text-slate-900 font-sans">
+    <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900 font-sans">
       {/* Sidebar - Fixed width */}
-      <div className={`flex-shrink-0 transition-all duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-0 overflow-hidden'}`}>
+      <div className={`flex-shrink-0 transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isSidebarOpen ? 'w-64' : 'w-0 overflow-hidden'}`}>
         <Sidebar 
           currentPage={page} 
           setPage={setPage} 
@@ -128,20 +124,20 @@ const App: React.FC = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
+      <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative bg-slate-50/50">
         
-        {/* Toggle Button (Visible only when sidebar closed or mobile) */}
+        {/* Toggle Button */}
         {!isSidebarOpen && (
              <button 
                 onClick={() => setIsSidebarOpen(true)}
-                className="absolute top-4 right-4 z-50 p-2 bg-white rounded-md shadow border border-gray-200 hover:bg-gray-50 text-slate-600"
+                className="absolute top-6 right-6 z-50 p-2.5 bg-white rounded-xl shadow-lg shadow-slate-200 border border-slate-100 hover:bg-brand-50 hover:text-brand-600 text-slate-500 transition-all"
              >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
              </button>
         )}
 
         {/* Content Scrollable Area */}
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto p-4 md:p-8 scroll-smooth">
            {renderPage()}
         </main>
       </div>
