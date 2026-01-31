@@ -1,47 +1,80 @@
-name: Build Madrasati Desktop App
+name: Build All Platforms (Windows & Android)
 
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  build-web:
+  # ---------------------------------------------------
+  # Job 1: Build Android APK (يتم البناء على بيئة Linux)
+  # ---------------------------------------------------
+  build-android:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
       - name: Install Dependencies
         run: npm install
-      - name: Build Web
+
+      - name: Build React App
         run: npm run build
-      - name: Upload Web Artifact
+
+      - name: Initialize Android Project
+        # نحاول إضافة أندرويد، وإذا كان موجوداً نتجاوز الخطوة
+        run: npx cap add android || true
+
+      - name: Sync Capacitor
+        run: npx cap sync
+
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: web-build
-          path: dist/
+          name: Madrasati-Android-App
+          path: android/app/build/outputs/apk/debug/app-debug.apk
 
+  # ---------------------------------------------------
+  # Job 2: Build Windows EXE (يتم البناء على بيئة Windows)
+  # ---------------------------------------------------
   build-windows:
     runs-on: windows-latest
-    needs: build-web
+    needs: build-android # (اختياري) يمكن إزالته ليعملا في وقت واحد، وضعناه هنا لتقليل الضغط
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+
       - name: Install Dependencies
         run: npm install
+
       - name: Build Windows Exe
+        # يقوم هذا الأمر ببناء تطبيق React ثم تحويله لملف exe
         run: npm run electron:build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Upload Windows Artifact
+
+      - name: Upload Windows App
         uses: actions/upload-artifact@v4
         with:
-          name: windows-app
+          name: Madrasati-Windows-App
           path: dist-electron/*.exe
