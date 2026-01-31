@@ -1,1 +1,22 @@
-{}
+{
+  "name": "مدرستي - النظام الإداري",
+  "short_name": "مدرستي",
+  "description": "نظام إدارة الغياب والتسرب المدرسي",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#4f46e5",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "assets/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
