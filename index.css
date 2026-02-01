@@ -21,7 +21,7 @@ body {
   direction: rtl;
 }
 
-/* Scrollbar Styling - Thinner and cleaner */
+/* Scrollbar Styling */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -38,22 +38,18 @@ body {
 }
 
 /* --- Components Classes --- */
-
-/* Enterprise Card Styling */
 .card {
   background-color: white;
-  border: 1px solid #e2e8f0; /* slate-200 - subtle border */
-  border-radius: 1rem; /* 16px */
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05); /* Very soft shadow */
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
 .card:hover {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
   border-color: #cbd5e1;
 }
 
-/* Modern Inputs */
 .form-input {
   display: block;
   width: 100%;
@@ -64,17 +60,15 @@ body {
   color: #1e293b;
   background-color: #ffffff;
   border: 1px solid #cbd5e1;
-  border-radius: 0.75rem; /* More rounded */
+  border-radius: 0.75rem;
   transition: all 0.2s ease;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
-
 .form-input:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1); /* Soft focus ring */
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
 }
-
 .form-input:disabled {
   background-color: #f1f5f9;
   color: #94a3b8;
@@ -82,7 +76,6 @@ body {
   border-color: #e2e8f0;
 }
 
-/* Button Base */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -100,44 +93,31 @@ body {
   user-select: none;
   letter-spacing: 0.01em;
 }
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
-.btn:active {
-  transform: scale(0.97);
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* Primary Button - Gradient & Shadow */
 .btn-primary {
   background: linear-gradient(135deg, var(--primary-color) 0%, #4338ca 100%);
   color: white;
   box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3);
 }
-
 .btn-primary:hover:not(:disabled) {
   background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
   box-shadow: 0 8px 10px -1px rgba(79, 70, 229, 0.4);
 }
 
-/* Secondary Button */
 .btn-secondary {
   background-color: white;
   color: #334155;
   border-color: #e2e8f0;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
-
 .btn-secondary:hover:not(:disabled) {
   background-color: #f8fafc;
   border-color: #cbd5e1;
   color: #0f172a;
 }
 
-/* Utilities */
 .glass-panel {
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(12px);
@@ -145,14 +125,47 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-/* Print Handling */
+/* 
+  --- PRINT OPTIMIZATION (THE FIX) --- 
+  عند إضافة كلاس .printing للـ body، نخفي كل شيء ما عدا منطقة الطباعة
+*/
+body.printing {
+  background-color: white !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+body.printing #root {
+  display: none !important;
+}
+
+body.printing #print-mount {
+  display: block !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: white;
+}
+
 @media print {
+  @page { size: A4; margin: 10mm; }
+  body { 
+    background-color: white; 
+    -webkit-print-color-adjust: exact; 
+    print-color-adjust: exact; 
+  }
+  
+  /* تأكيد إخفاء التطبيق وإظهار الطباعة */
+  #root { display: none !important; }
+  #print-mount { display: block !important; }
+  
   .no-print { display: none !important; }
-  body { background-color: white; }
   .card { border: none; box-shadow: none; border-radius: 0; }
 }
 
-/* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
