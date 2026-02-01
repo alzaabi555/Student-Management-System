@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
-import BottomNav from './components/BottomNav'; // <-- استيراد الشريط السفلي
+import BottomNav from './components/BottomNav'; // الشريط السفلي الجديد
 import Dashboard from './components/Dashboard';
 import AttendanceSheet from './components/AttendanceSheet';
 import StudentsManager from './components/StudentsManager';
@@ -13,46 +13,39 @@ import AboutApp from './components/AboutApp';
 import ActivationPage from './components/ActivationPage';
 import { getSchoolSettings, initializeData } from './services/dataService';
 import { isAppActivated } from './services/licenseService';
-import { Loader2, X } from 'lucide-react'; // <-- X للإغلاق
+import { Loader2, X } from 'lucide-react';
 
 const App: React.FC = () => {
   const [page, setPage] = useState('dashboard');
   
-  // حالة القائمة الجانبية (للويندوز)
+  // حالة السايدبار للويندوز (مفتوح/مغلق)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   
-  // حالة القائمة المنبثقة (للتابلت عند الضغط على زر المزيد)
+  // حالة القائمة المنبثقة للتابلت (عند الضغط على زر المزيد)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // App States
   const [isLoading, setIsLoading] = useState(true);
   const [isActivated, setIsActivated] = useState(false);
   const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [schoolInfo, setSchoolInfo] = useState<{name: string, district: string} | null>(null);
-  
   const [reportStudentId, setReportStudentId] = useState<string | null>(null);
 
   const initApp = async () => {
     setIsLoading(true);
     const activated = isAppActivated();
     setIsActivated(activated);
-
     if (activated) {
         await initializeData(); 
         const settings = await getSchoolSettings();
         if (settings && settings.isSetup) {
           setIsSetupComplete(true);
           setSchoolInfo(settings);
-        } else {
-          setIsSetupComplete(false);
         }
     }
     setIsLoading(false);
   };
 
-  useEffect(() => {
-    initApp();
-  }, []);
+  useEffect(() => { initApp(); }, []);
 
   const handleActivationSuccess = async () => {
       setIsLoading(true);
@@ -85,15 +78,7 @@ const App: React.FC = () => {
     setIsMobileMenuOpen(false);
   };
 
-  if (isLoading) {
-    return (
-        <div className="flex flex-col items-center justify-center h-screen bg-brand-50 text-brand-700 gap-4">
-            <Loader2 size={48} className="animate-spin text-brand-600" />
-            <p className="font-bold text-lg tracking-wide">جاري تحميل النظام...</p>
-        </div>
-    );
-  }
-
+  if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /></div>;
   if (!isActivated) return <ActivationPage onSuccess={handleActivationSuccess} />;
   if (!isSetupComplete) return <WelcomeSetup onComplete={handleSetupComplete} />;
 
@@ -114,11 +99,11 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900 font-sans relative">
       
-      {/* ========================================================
-          1. WINDOWS SIDEBAR (Desktop)
-          يظهر فقط في الشاشات الكبيرة (lg وما فوق).
-          يختفي تماماً في التابلت والموبايل (hidden lg:block).
-          ======================================================== */}
+      {/* ===================================================
+          1. WINDOWS / DESKTOP SIDEBAR
+          يظهر فقط في الشاشات الكبيرة (lg) 
+          يختفي تماماً في التابلت (hidden)
+          =================================================== */}
       <div className={`hidden lg:block flex-shrink-0 transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
         <Sidebar 
           currentPage={page} 
@@ -129,10 +114,10 @@ const App: React.FC = () => {
         />
       </div>
 
-      {/* ========================================================
-          2. TABLET/MOBILE DRAWER (Overlay)
-          يظهر فقط عند الضغط على زر "المزيد" في الشريط السفلي.
-          ======================================================== */}
+      {/* ===================================================
+          2. TABLET DRAWER (Overlay)
+          يظهر فقط عند الضغط على زر "المزيد" في الشريط السفلي
+          =================================================== */}
       {isMobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}>
            <div 
@@ -145,7 +130,7 @@ const App: React.FC = () => {
              >
                <X size={20} />
              </button>
-             {/* إعادة استخدام السايدبار كقائمة منبثقة */}
+             {/* إعادة استخدام السايدبار كقائمة لكامل الخيارات */}
              <Sidebar 
                currentPage={page} 
                setPage={handlePageChange} 
@@ -173,16 +158,15 @@ const App: React.FC = () => {
         </div>
 
         {/* مساحة المحتوى */}
-        {/* pb-24: إضافة مسافة سفلية في التابلت للشريط السفلي */}
-        {/* lg:pb-8: إزالة المسافة الزائدة في الويندوز */}
+        {/* pb-24 للتابلت عشان الشريط السفلي، lg:pb-8 للويندوز */}
         <main className="flex-1 overflow-auto p-4 md:p-8 pb-24 lg:pb-8 scroll-smooth">
            {renderPage()}
         </main>
 
-        {/* ========================================================
+        {/* ===================================================
             3. TABLET BOTTOM NAV
-            يظهر فقط في التابلت والموبايل (lg:hidden).
-            ======================================================== */}
+            يظهر فقط في التابلت والموبايل (lg:hidden)
+            =================================================== */}
         <BottomNav 
           currentPage={page} 
           setPage={handlePageChange} 
