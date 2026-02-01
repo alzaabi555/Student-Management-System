@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { UserX, UserMinus, Activity, DoorOpen, Calendar, PlusCircle, FileText, Send, PieChart, BarChart3, X, TrendingUp, TrendingDown } from 'lucide-react';
-import { getDailyStats, students, grades, getAttendanceRecord } from '../services/dataService';
+import { getDailyStats, students, grades, getAttendanceRecord, getSchoolAssets } from '../services/dataService';
 import { DashboardStats, AttendanceStatus } from '../types';
 
 interface StatCardProps {
@@ -46,6 +46,7 @@ const QuickAction: React.FC<{ label: string; icon: React.ReactNode; onClick?: ()
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [schoolLogo, setSchoolLogo] = useState<string | null>(null);
   
   const dateStr = new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const isoDate = new Date().toISOString().split('T')[0];
@@ -53,7 +54,16 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     const data = getDailyStats(isoDate);
     setStats(data);
-  }, [isoDate, showAnalysis]); // Update when analysis opens to ensure fresh data
+    
+    // Load school logo
+    const loadLogo = async () => {
+        const assets = await getSchoolAssets();
+        if (assets && assets.headerLogo) {
+            setSchoolLogo(assets.headerLogo);
+        }
+    };
+    loadLogo();
+  }, [isoDate, showAnalysis]); 
 
   // --- Analysis Logic ---
   const analysisData = useMemo(() => {
@@ -113,7 +123,11 @@ const Dashboard: React.FC = () => {
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-900 to-brand-700 shadow-xl shadow-brand-900/20 text-white p-8">
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
             <div>
-                <h1 className="text-3xl font-bold mb-2">لوحة المعلومات اليومية</h1>
+                {schoolLogo ? (
+                    <img src={schoolLogo} alt="شعار المدرسة" className="h-20 w-auto mb-4 object-contain brightness-0 invert opacity-90" />
+                ) : (
+                    <h1 className="text-3xl font-bold mb-2">لوحة المعلومات اليومية</h1>
+                )}
                 <p className="text-brand-100 flex items-center gap-2 text-lg">
                     <Calendar size={20} />
                     <span>{dateStr}</span>

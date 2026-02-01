@@ -1,7 +1,7 @@
 
-import React, { useState, useRef } from 'react';
-import { Layers, Plus, Trash2, Folder, GraduationCap, AlertCircle, Database, Download, Upload, RefreshCw, AlertTriangle } from 'lucide-react';
-import { grades, classes, addGrade, deleteGrade, addClass, deleteClass, exportDatabase, importDatabase, resetDatabase } from '../services/dataService';
+import React, { useState, useRef, useEffect } from 'react';
+import { Layers, Plus, Trash2, Folder, GraduationCap, AlertCircle, Database, Download, Upload, RefreshCw, AlertTriangle, Image as ImageIcon, Check } from 'lucide-react';
+import { grades, classes, addGrade, deleteGrade, addClass, deleteClass, exportDatabase, importDatabase, resetDatabase, getSchoolAssets, saveSchoolAssets } from '../services/dataService';
 
 const SchoolManager: React.FC = () => {
   const [selectedGradeId, setSelectedGradeId] = useState<string | null>(grades.length > 0 ? grades[0].id : null);
@@ -12,6 +12,19 @@ const SchoolManager: React.FC = () => {
   // Backup State
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Logo State
+  const [logo, setLogo] = useState<string | null>(null);
+
+  useEffect(() => {
+      const loadAssets = async () => {
+          const assets = await getSchoolAssets();
+          if (assets && assets.headerLogo) {
+              setLogo(assets.headerLogo);
+          }
+      };
+      loadAssets();
+  }, []);
 
   const refresh = () => setForceUpdate(prev => prev + 1);
 
@@ -42,6 +55,31 @@ const SchoolManager: React.FC = () => {
 
   const handleDeleteClass = (id: string) => {
     if (window.confirm('حذف الفصل؟')) { deleteClass(id); refresh(); }
+  };
+
+  // --- Logo Handling ---
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const base64 = reader.result as string;
+            const currentAssets = await getSchoolAssets();
+            const newAssets = { ...currentAssets, headerLogo: base64 };
+            await saveSchoolAssets(newAssets);
+            setLogo(base64);
+        };
+        reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDeleteLogo = async () => {
+      if(window.confirm('هل تريد حذف شعار المدرسة؟ سيعود النظام للشعار الافتراضي.')) {
+        const currentAssets = await getSchoolAssets();
+        const newAssets = { ...currentAssets, headerLogo: undefined };
+        await saveSchoolAssets(newAssets);
+        setLogo(null);
+      }
   };
   
   // --- Backup Functions ---
@@ -110,12 +148,61 @@ const SchoolManager: React.FC = () => {
       
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-slate-800">الهيكل المدرسي</h2>
-        <p className="text-gray-500">إضافة الصفوف والفصول الدراسية وإدارة النظام</p>
+        <h2 className="text-2xl font-bold text-slate-800">إعدادات النظام</h2>
+        <p className="text-gray-500">إدارة الهيكل المدرسي، هوية المدرسة، والبيانات</p>
+      </div>
+
+      {/* --- School Branding Section --- */}
+      <div className="card p-6 border-l-4 border-l-purple-500">
+         <div className="flex items-start justify-between">
+            <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <ImageIcon className="text-purple-600" size={20} />
+                    هوية المدرسة
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">رفع شعار المدرسة ليظهر في الصفحة الرئيسية والتقارير</p>
+            </div>
+            {logo && <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full"><Check size={12}/> الشعار مفعل</span>}
+         </div>
+
+         <div className="mt-6 flex items-center gap-6">
+             <div className="relative w-24 h-24 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden group">
+                 {logo ? (
+                     <img src={logo} alt="School Logo" className="w-full h-full object-contain p-2" />
+                 ) : (
+                     <ImageIcon className="text-gray-300" size={32} />
+                 )}
+                 <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleLogoUpload}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    title="تغيير الشعار"
+                 />
+             </div>
+             
+             <div className="flex flex-col gap-2">
+                 <button className="btn btn-secondary text-xs relative overflow-hidden">
+                     <Upload size={14} />
+                     <span>رفع شعار جديد</span>
+                     <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleLogoUpload}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                     />
+                 </button>
+                 {logo && (
+                     <button onClick={handleDeleteLogo} className="btn bg-white border border-red-200 text-red-600 hover:bg-red-50 text-xs">
+                         <Trash2 size={14} />
+                         <span>حذف الشعار</span>
+                     </button>
+                 )}
+             </div>
+         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[500px]">
-        
         {/* Grades */}
         <div className="card flex flex-col h-full overflow-hidden">
           <div className="p-4 border-b bg-gray-50 font-bold flex justify-between items-center">

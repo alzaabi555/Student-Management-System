@@ -1,8 +1,16 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Printer, FileSpreadsheet, User, Users, CalendarRange, Calendar, ChevronDown, Filter, FileText } from 'lucide-react';
+import { Printer, FileSpreadsheet, User, Users, CalendarRange, Calendar, ChevronDown, Filter, FileText, Share2, Bluetooth } from 'lucide-react';
 import { getSchoolSettings, grades, classes, students, getAttendanceRecord, getStudentHistory, getClassPeriodStats } from '../services/dataService';
-import { printAttendanceSheet, printStudentReport, printClassPeriodReport } from '../services/printService';
+import { 
+    printAttendanceSheet, 
+    printStudentReport, 
+    printClassPeriodReport, 
+    shareHTMLAsPDF, 
+    generateAttendanceSheetHTML, 
+    generateClassPeriodReportHTML, 
+    generateStudentReportHTML 
+} from '../services/printService';
 import { AttendanceStatus } from '../types';
 
 interface ReportsProps {
@@ -13,6 +21,7 @@ interface ReportsProps {
 const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) => {
   const [activeTab, setActiveTab] = useState<'class' | 'student'>('class');
   const [schoolName, setSchoolName] = useState('مدرستي');
+  const [isSharing, setIsSharing] = useState(false);
 
   // --- Class Report State ---
   const [reportType, setReportType] = useState<'daily' | 'period'>('daily');
@@ -115,94 +124,102 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
   }, [availableStudents, selectedStudentId, initialStudentId]);
 
 
-  // --- Handlers ---
+  // --- Logic Helpers ---
 
-  // 1. Class Report Handler
-  const handlePrintClassReport = () => {
-    if (!selectedClass) {
-        alert("الرجاء اختيار فصل");
-        return;
-    }
-    
+  const getClassReportData = () => {
+    if (!selectedClass) return null;
     const gradeName = grades.find(g => g.id === selectedGrade)?.name || '';
     const className = classes.find(c => c.id === selectedClass)?.name || '';
-
+    
     if (reportType === 'daily') {
         const classStudents = students.filter(s => s.classId === selectedClass);
-        if (classStudents.length === 0) {
-            alert("لا يوجد طلاب في هذا الفصل");
-            return;
-        }
-
+        if (classStudents.length === 0) return null;
         const attendanceMap: Record<string, AttendanceStatus> = {};
         classStudents.forEach(s => {
             const record = getAttendanceRecord(classDate, s.id);
             attendanceMap[s.id] = record ? record.status : AttendanceStatus.PRESENT;
         });
-
-        printAttendanceSheet(
-            schoolName,
-            gradeName,
-            className,
-            classDate,
-            classStudents,
-            attendanceMap
-        );
+        return { type: 'daily', schoolName, gradeName, className, classDate, classStudents, attendanceMap };
     } else {
-        if (!classStartDate || !classEndDate) {
-            alert("الرجاء تحديد تاريخ البداية والنهاية");
-            return;
-        }
-        
+        if (!classStartDate || !classEndDate) return null;
         const stats = getClassPeriodStats(selectedClass, classStartDate, classEndDate);
-        
-        printClassPeriodReport(
-            schoolName,
-            gradeName,
-            className,
-            classStartDate,
-            classEndDate,
-            stats
-        );
+        return { type: 'period', schoolName, gradeName, className, classStartDate, classEndDate, stats };
     }
   };
 
-  // 2. Student Report Handler
-  const handlePrintStudentReport = () => {
-    if (!selectedStudentId) {
-        alert("الرجاء اختيار طالب");
-        return;
-    }
+  const getStudentReportData = () => {
+      if (!selectedStudentId) return null;
+      const student = students.find(s => s.id === selectedStudentId);
+      if (!student) return null;
+      const history = getStudentHistory(selectedStudentId, stStartDate, stEndDate);
+      const gradeName = grades.find(g => g.id === stGrade)?.name || '';
+      const className = classes.find(c => c.id === stClass)?.name || '';
+      let periodText = 'سجل كامل';
+      if (stStartDate && stEndDate) periodText = `الفترة من ${stStartDate} إلى ${stEndDate}`;
+      else if (stStartDate) periodText = `من تاريخ ${stStartDate}`;
+      
+      return { schoolName, studentName: student.name, gradeName, className, history, periodText };
+  };
 
-    const student = students.find(s => s.id === selectedStudentId);
-    if (!student) return;
+  // --- Print Handlers ---
 
-    const history = getStudentHistory(selectedStudentId, stStartDate, stEndDate);
+  const handlePrintClassReport = () => {
+    const data = getClassReportData();
+    if (!data) { alert("البيانات غير مكتملة"); return; }
     
-    const gradeName = grades.find(g => g.id === stGrade)?.name || '';
-    const className = classes.find(c => c.id === stClass)?.name || '';
-
-    let periodText = 'سجل كامل';
-    if (stStartDate && stEndDate) {
-        periodText = `الفترة من ${stStartDate} إلى ${stEndDate}`;
-    } else if (stStartDate) {
-        periodText = `من تاريخ ${stStartDate}`;
+    if (data.type === 'daily') {
+        printAttendanceSheet(data.schoolName, data.gradeName, data.className, data.classDate, data.classStudents, data.attendanceMap);
+    } else {
+        printClassPeriodReport(data.schoolName, data.gradeName, data.className, data.classStartDate, data.classEndDate, data.stats);
     }
+  };
 
-    printStudentReport(
-        schoolName,
-        student.name,
-        gradeName,
-        className,
-        history,
-        periodText
-    );
+  const handlePrintStudentReport = () => {
+    const data = getStudentReportData();
+    if (!data) { alert("الرجاء اختيار طالب"); return; }
+    printStudentReport(data.schoolName, data.studentName, data.gradeName, data.className, data.history, data.periodText);
+  };
+
+  // --- Share / Bluetooth Handlers ---
+
+  const handleShareClassReport = async () => {
+    const data = getClassReportData();
+    if (!data) { alert("البيانات غير مكتملة"); return; }
+    
+    setIsSharing(true);
+    try {
+        let html = '';
+        let fileName = '';
+        if (data.type === 'daily') {
+            html = generateAttendanceSheetHTML(data.schoolName, data.gradeName, data.className, data.classDate, data.classStudents, data.attendanceMap);
+            fileName = `كشف_غياب_${data.className}_${data.classDate}`;
+        } else {
+            html = generateClassPeriodReportHTML(data.schoolName, data.gradeName, data.className, data.classStartDate, data.classEndDate, data.stats);
+            fileName = `تقرير_فصل_${data.className}`;
+        }
+        await shareHTMLAsPDF(html, fileName);
+    } finally {
+        setIsSharing(false);
+    }
+  };
+
+  const handleShareStudentReport = async () => {
+    const data = getStudentReportData();
+    if (!data) { alert("الرجاء اختيار طالب"); return; }
+    
+    setIsSharing(true);
+    try {
+        const html = generateStudentReportHTML(data.schoolName, data.studentName, data.gradeName, data.className, data.history, data.periodText);
+        const fileName = `تقرير_الطالب_${data.studentName.replace(/\s+/g, '_')}`;
+        await shareHTMLAsPDF(html, fileName);
+    } finally {
+        setIsSharing(false);
+    }
   };
 
   const selectedStudentName = students.find(s => s.id === selectedStudentId)?.name;
 
   return (
-    // Changed: Removed h-full, added w-full and pb-20 to ensure scrolling works and bottom content is accessible
     <div className="flex flex-col w-full max-w-5xl mx-auto space-y-6 pb-20">
       
       {/* Header */}
@@ -212,7 +229,7 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
         </div>
         <div>
             <h2 className="text-2xl font-bold text-slate-800">مركز التقارير</h2>
-            <p className="text-gray-500 text-sm mt-1">طباعة الكشوفات الرسمية وتقارير المتابعة الفردية</p>
+            <p className="text-gray-500 text-sm mt-1">طباعة الكشوفات ومشاركتها (بلوتوث / واتساب)</p>
         </div>
       </div>
 
@@ -239,13 +256,13 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
         {/* TAB 1: CLASS REPORT */}
         {activeTab === 'class' && (
             <div className="space-y-6">
+                {/* ... (Existing Filters UI - Same as before) ... */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-gray-100">
                     <div>
                         <h3 className="font-bold text-lg text-slate-800">تقرير الفصل الدراسي</h3>
                         <p className="text-gray-500 text-sm">اختر نوع التقرير والفترة الزمنية</p>
                     </div>
 
-                    {/* Report Type Toggle */}
                     <div className="flex bg-gray-50 p-1 rounded-lg border border-gray-200 self-start md:self-auto">
                         <button 
                             onClick={() => setReportType('daily')}
@@ -265,7 +282,6 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                     {/* Dynamic Date Inputs */}
                      {reportType === 'daily' ? (
                         <div className="lg:col-span-2 space-y-2">
                             <label className="text-xs font-bold text-slate-600">تاريخ الكشف</label>
@@ -324,14 +340,23 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
                     </div>
                 </div>
 
-                <div className="flex justify-end pt-6 border-t border-gray-100 mt-4">
+                {/* --- Buttons Area --- */}
+                <div className="flex justify-end pt-6 border-t border-gray-100 mt-4 gap-3">
+                    <button 
+                        onClick={handleShareClassReport}
+                        disabled={!selectedClass || isSharing}
+                        className="btn bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm border-transparent"
+                    >
+                         {isSharing ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Share2 size={18} />}
+                        مشاركة / بلوتوث
+                    </button>
                     <button 
                         onClick={handlePrintClassReport}
                         disabled={!selectedClass}
-                        className="btn btn-primary"
+                        className="btn btn-secondary border-blue-200 text-blue-700 hover:bg-blue-50"
                     >
                         <Printer size={18} />
-                        {reportType === 'daily' ? 'طباعة كشف الغياب' : 'طباعة التقرير الإحصائي'}
+                        طباعة
                     </button>
                 </div>
             </div>
@@ -341,7 +366,7 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
         {activeTab === 'student' && (
             <div className="space-y-6">
                 
-                {/* --- NEW: QUICK PRINT HEADER --- */}
+                {/* --- QUICK ACTIONS HEADER --- */}
                 {selectedStudentId && (
                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex flex-col sm:flex-row justify-between items-center gap-4 animate-fadeIn shadow-sm">
                       <div className="flex items-center gap-3">
@@ -350,16 +375,26 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
                          </div>
                          <div>
                              <h4 className="font-bold text-blue-900 text-lg">{selectedStudentName}</h4>
-                             <p className="text-xs text-blue-600 font-medium">التقرير جاهز للطباعة</p>
+                             <p className="text-xs text-blue-600 font-medium">التقرير جاهز للإجراء</p>
                          </div>
                       </div>
-                      <button 
-                        onClick={handlePrintStudentReport}
-                        className="btn bg-blue-600 text-white hover:bg-blue-700 shadow-md border-transparent px-8"
-                      >
-                        <Printer size={18} />
-                        طباعة التقرير الآن
-                      </button>
+                      <div className="flex gap-2">
+                          <button 
+                            onClick={handleShareStudentReport}
+                            disabled={isSharing}
+                            className="btn bg-indigo-600 text-white hover:bg-indigo-700 shadow-md border-transparent"
+                          >
+                             {isSharing ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Share2 size={18} />}
+                            مشاركة / بلوتوث
+                          </button>
+                          <button 
+                            onClick={handlePrintStudentReport}
+                            className="btn bg-white text-blue-700 hover:bg-blue-50 border border-blue-200"
+                          >
+                            <Printer size={18} />
+                            طباعة
+                          </button>
+                      </div>
                    </div>
                 )}
                 {/* ------------------------------- */}
