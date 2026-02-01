@@ -112,8 +112,9 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900 font-sans">
-      {/* Sidebar - Fixed width */}
-      <div className={`flex-shrink-0 transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isSidebarOpen ? 'w-64' : 'w-0 overflow-hidden'}`}>
+      {/* Sidebar - Responsive Width */}
+      {/* w-64 on Mobile/Desktop, but shrinks to w-20 on Tablets (md) to save space */}
+      <div className={`flex-shrink-0 transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isSidebarOpen ? 'w-64 md:w-20 lg:w-64' : 'w-0 overflow-hidden'}`}>
         <Sidebar 
           currentPage={page} 
           setPage={setPage} 
