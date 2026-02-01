@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
-import BottomNav from './components/BottomNav'; // الشريط السفلي الجديد
+import BottomNav from './components/BottomNav'; // الحفاظ على الشريط السفلي
 import Dashboard from './components/Dashboard';
 import AttendanceSheet from './components/AttendanceSheet';
 import StudentsManager from './components/StudentsManager';
@@ -10,53 +10,53 @@ import SummonPage from './components/SummonPage';
 import WelcomeSetup from './components/WelcomeSetup';
 import UserGuide from './components/UserGuide';
 import AboutApp from './components/AboutApp';
-import ActivationPage from './components/IntroScreen';
+import IntroScreen from './components/IntroScreen'; // استيراد المكون الجديد
 import { getSchoolSettings, initializeData } from './services/dataService';
-import { isAppActivated } from './services/licenseService';
 import { Loader2, X } from 'lucide-react';
 
 const App: React.FC = () => {
   const [page, setPage] = useState('dashboard');
   
-  // حالة السايدبار للويندوز (مفتوح/مغلق)
+  // حالة السايدبار للويندوز
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   
-  // حالة القائمة المنبثقة للتابلت (عند الضغط على زر المزيد)
+  // حالة القائمة المنبثقة للتابلت (المزيد)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
-  const [isActivated, setIsActivated] = useState(false);
+  const [showIntro, setShowIntro] = useState(false); // الحالة الجديدة للمقدمة
   const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [schoolInfo, setSchoolInfo] = useState<{name: string, district: string} | null>(null);
   const [reportStudentId, setReportStudentId] = useState<string | null>(null);
 
   const initApp = async () => {
     setIsLoading(true);
-    const activated = isAppActivated();
-    setIsActivated(activated);
-    if (activated) {
-        await initializeData(); 
-        const settings = await getSchoolSettings();
-        if (settings && settings.isSetup) {
-          setIsSetupComplete(true);
-          setSchoolInfo(settings);
-        }
+    
+    // 1. تهيئة البيانات الأساسية
+    await initializeData(); 
+
+    // 2. التحقق مما إذا كان المستخدم قد شاهد شاشة التقديم (Intro)
+    const introSeen = localStorage.getItem('madrasati_intro_seen');
+    if (!introSeen) {
+        setShowIntro(true);
     }
+
+    // 3. التحقق من إعدادات المدرسة
+    const settings = await getSchoolSettings();
+    if (settings && settings.isSetup) {
+      setIsSetupComplete(true);
+      setSchoolInfo(settings);
+    }
+    
     setIsLoading(false);
   };
 
   useEffect(() => { initApp(); }, []);
 
-  const handleActivationSuccess = async () => {
-      setIsLoading(true);
-      setIsActivated(true);
-      await initializeData();
-      const settings = await getSchoolSettings();
-      if (settings && settings.isSetup) {
-        setIsSetupComplete(true);
-        setSchoolInfo(settings);
-      }
-      setIsLoading(false);
+  // دالة إكمال المقدمة الجديدة
+  const handleIntroComplete = () => {
+      localStorage.setItem('madrasati_intro_seen', 'true');
+      setShowIntro(false);
   };
 
   const handleSetupComplete = async () => {
@@ -72,15 +72,30 @@ const App: React.FC = () => {
     setPage('reports');
   };
 
-  // دالة لتغيير الصفحة وإغلاق القائمة في الموبايل
   const handlePageChange = (newPage: string) => {
     setPage(newPage);
     setIsMobileMenuOpen(false);
   };
 
-  if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /></div>;
-  if (!isActivated) return <ActivationPage onSuccess={handleActivationSuccess} />;
-  if (!isSetupComplete) return <WelcomeSetup onComplete={handleSetupComplete} />;
+  // شاشة التحميل الفخمة من الكود الجديد
+  if (isLoading) {
+    return (
+        <div className="flex flex-col items-center justify-center h-screen bg-brand-50 text-brand-700 gap-4">
+            <Loader2 size={48} className="animate-spin text-brand-600" />
+            <p className="font-bold text-lg tracking-wide">جاري تحميل النظام...</p>
+        </div>
+    );
+  }
+
+  // ✅ استخدام IntroScreen الجديد بدلاً من ActivationPage
+  // لاحظ استخدام onComplete لحل خطأ الـ Build
+  if (showIntro) {
+      return <IntroScreen onComplete={handleIntroComplete} />;
+  }
+
+  if (!isSetupComplete) {
+    return <WelcomeSetup onComplete={handleSetupComplete} />;
+  }
 
   const renderPage = () => {
     switch (page) {
@@ -99,11 +114,7 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900 font-sans relative">
       
-      {/* ===================================================
-          1. WINDOWS / DESKTOP SIDEBAR
-          يظهر فقط في الشاشات الكبيرة (lg) 
-          يختفي تماماً في التابلت (hidden)
-          =================================================== */}
+      {/* 1. السايدبار المخصص للويندوز (يختفي في التابلت) */}
       <div className={`hidden lg:block flex-shrink-0 transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
         <Sidebar 
           currentPage={page} 
@@ -114,10 +125,7 @@ const App: React.FC = () => {
         />
       </div>
 
-      {/* ===================================================
-          2. TABLET DRAWER (Overlay)
-          يظهر فقط عند الضغط على زر "المزيد" في الشريط السفلي
-          =================================================== */}
+      {/* 2. قائمة التابلت المنبثقة (Drawer) */}
       {isMobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}>
            <div 
@@ -128,9 +136,8 @@ const App: React.FC = () => {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="absolute top-4 left-4 p-2 bg-slate-100 rounded-full hover:bg-red-50 hover:text-red-500 transition z-50"
              >
-               <X size={20} />
+                <X size={20} />
              </button>
-             {/* إعادة استخدام السايدبار كقائمة لكامل الخيارات */}
              <Sidebar 
                currentPage={page} 
                setPage={handlePageChange} 
@@ -142,10 +149,10 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Main Content Area */}
+      {/* منطقة المحتوى الرئيسية */}
       <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative bg-slate-50/50">
         
-        {/* زر تصغير السايدبار (فقط في الويندوز) */}
+        {/* زر التحكم بالسايدبار (ويندوز فقط) */}
         <div className="hidden lg:block">
             {!isSidebarOpen && (
                 <button 
@@ -157,16 +164,12 @@ const App: React.FC = () => {
             )}
         </div>
 
-        {/* مساحة المحتوى */}
-        {/* pb-24 للتابلت عشان الشريط السفلي، lg:pb-8 للويندوز */}
+        {/* المساحة القابلة للتمرير مع مراعاة الشريط السفلي للتابلت */}
         <main className="flex-1 overflow-auto p-4 md:p-8 pb-24 lg:pb-8 scroll-smooth">
            {renderPage()}
         </main>
 
-        {/* ===================================================
-            3. TABLET BOTTOM NAV
-            يظهر فقط في التابلت والموبايل (lg:hidden)
-            =================================================== */}
+        {/* 3. شريط التنقل السفلي للتابلت (يختفي في الويندوز) */}
         <BottomNav 
           currentPage={page} 
           setPage={handlePageChange} 
