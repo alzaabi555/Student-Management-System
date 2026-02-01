@@ -42,9 +42,15 @@ jobs:
       # ---------------------------------------------------
       - name: Generate & Inject Android Icons
         run: |
-          # توليد كافة مقاسات الأيقونات من ملف icon.png الموجود في جذر المشروع
-          npx capacitor-assets generate --android --icon icon.png
-          # مزامنة الملفات الجديدة مع مجلد أندرويد المولد
+          # 1. إنشاء مجلد assets مؤقت لأن الأداة تبحث فيه افتراضياً
+          mkdir -p assets
+          cp icon.png assets/icon.png
+          
+          # 2. توليد الأيقونات (الأداة ستقرأ من مجلد assets تلقائياً)
+          # حذفنا --icon واستخدمنا الأمر القياسي
+          npx @capacitor/assets generate --android
+          
+          # 3. مزامنة الملفات مع مشروع أندرويد
           npx cap sync android
 
       - name: Build APK
