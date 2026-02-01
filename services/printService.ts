@@ -8,32 +8,35 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
 /**
- * دالة الطباعة باستخدام Iframe
- * هذه الطريقة أكثر توافقاً مع الهواتف والتابلت لأنها تعزل محتوى الطباعة في نافذة مستقلة
+ * دالة الطباعة الذكية
  */
-const printHTML = (contentBody: string) => {
-  // 1. إنشاء Iframe مخفي
+const printHTML = async (contentBody: string, title: string = 'تقرير') => {
+  if (Capacitor.isNativePlatform()) {
+      try {
+        await shareHTMLAsPDF(contentBody, title);
+      } catch (e) {
+        console.error("Android Print Error", e);
+        alert("حدث خطأ أثناء تحضير الملف للطباعة.");
+      }
+      return;
+  }
+
   const iframe = document.createElement('iframe');
-  
-  // إعدادات الستايل لضمان عدم ظهور الـ Iframe في الشاشة ولكن بقائه متاحاً للطباعة
   iframe.style.position = 'fixed';
   iframe.style.right = '0';
   iframe.style.bottom = '0';
   iframe.style.width = '0';
   iframe.style.height = '0';
   iframe.style.border = '0';
-  // مهم جداً للأندرويد: يجب أن يكون جزءاً من الـ DOM
   document.body.appendChild(iframe);
 
   const doc = iframe.contentWindow?.document;
   if (!doc) return;
 
-  // 2. كتابة محتوى التقرير داخل الـ Iframe
   doc.open();
   doc.write(getReportHTMLStructure(contentBody));
   doc.close();
 
-  // 3. تنفيذ أمر الطباعة بعد مهلة قصيرة
   setTimeout(() => {
     if (iframe.contentWindow) {
         iframe.contentWindow.focus();
@@ -41,11 +44,8 @@ const printHTML = (contentBody: string) => {
             iframe.contentWindow.print();
         } catch (e) {
             console.error("Print error:", e);
-            alert("حدث خطأ أثناء محاولة الطباعة. يرجى المحاولة مرة أخرى.");
         }
     }
-    
-    // إزالة الـ Iframe بعد فترة
     setTimeout(() => {
         if (document.body.contains(iframe)) {
             document.body.removeChild(iframe);
@@ -54,7 +54,7 @@ const printHTML = (contentBody: string) => {
   }, 500);
 };
 
-// هيكل HTML الموحد للتقارير (للطباعة وللمشاركة)
+// هيكل HTML الموحد
 const getReportHTMLStructure = (bodyContent: string) => `
     <!DOCTYPE html>
     <html dir="rtl">
@@ -85,11 +85,16 @@ const getReportHTMLStructure = (bodyContent: string) => `
         .status-absent { background-color: #ffe4e6 !important; -webkit-print-color-adjust: exact; font-weight: bold; }
         .status-truant { background-color: #fef3c7 !important; -webkit-print-color-adjust: exact; }
         
-        .footer-sig { margin-top: 80px; display: flex; justify-content: space-between; page-break-inside: avoid; padding: 0 50px; }
+        /* فواصل الصفحات للطباعة المتعددة */
+        .page-break { page-break-after: always; display: block; height: 1px; margin: 30px 0; border-bottom: 1px dashed #ccc; }
+        .report-section { margin-bottom: 40px; page-break-inside: avoid; }
+
+        .footer-sig { margin-top: 50px; display: flex; justify-content: space-between; page-break-inside: avoid; padding: 0 50px; }
 
         @media print {
             @page { size: A4; margin: 10mm; }
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .page-break { border: none; height: 0; }
         }
       </style>
     </head>
@@ -100,88 +105,96 @@ const getReportHTMLStructure = (bodyContent: string) => `
 `;
 
 /**
- * دالة جديدة لمشاركة التقرير كـ PDF (بلوتوث، واتساب، إلخ)
+ * دالة توليد PDF ذكية تدعم تعدد الصفحات
  */
 export const shareHTMLAsPDF = async (contentBody: string, fileName: string) => {
-    // 1. إنشاء حاوية مؤقتة للرسم
     const container = document.createElement('div');
     container.style.position = 'fixed';
     container.style.top = '-9999px';
     container.style.left = '0';
-    container.style.width = '210mm'; // عرض A4
+    container.style.width = '210mm'; // عرض A4 بالضبط
     container.style.minHeight = '297mm';
     container.style.backgroundColor = '#ffffff';
     container.style.zIndex = '-100';
     
-    // استخدام نفس الهيكل والتنسيقات
     container.innerHTML = getReportHTMLStructure(contentBody);
     document.body.appendChild(container);
 
     try {
-        // انتظار بسيط لضمان تحميل التنسيقات
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 800)); // انتظار أطول قليلاً للرندر
 
-        // 2. تحويل HTML إلى صورة (Canvas)
         const canvas = await html2canvas(container, {
-            scale: 2, // جودة عالية
+            scale: 2,
             useCORS: true,
-            logging: false
+            logging: false,
+            windowWidth: 794 // تقريباً عرض A4 بالبكسل عند 96 DPI
         });
 
-        // 3. تحويل الصورة إلى PDF
         const imgData = canvas.toDataURL('image/png');
+        
+        // إعدادات PDF للصفحات المتعددة
+        const imgWidth = 210; // مم (عرض A4)
+        const pageHeight = 295; // مم (ارتفاع A4 - هامش بسيط)
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        let heightLeft = imgHeight;
+        let position = 0;
+
         const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+        // الصفحة الأولى
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+
+        // باقي الصفحات (إذا كان المحتوى طويلاً)
+        while (heightLeft >= 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
         
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        
-        // 4. الحفظ والمشاركة
         if (Capacitor.isNativePlatform()) {
             const base64Data = pdf.output('datauristring').split(',')[1];
             const safeFileName = `${fileName.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
 
-            // حفظ الملف في الذاكرة المؤقتة للجهاز
             await Filesystem.writeFile({
                 path: safeFileName,
                 data: base64Data,
                 directory: Directory.Cache
             });
 
-            // الحصول على مسار الملف
             const uriResult = await Filesystem.getUri({
                 directory: Directory.Cache,
                 path: safeFileName
             });
 
-            // فتح نافذة المشاركة الأصلية (Share Sheet)
             await Share.share({
                 title: fileName,
-                text: `مرفق تقرير: ${fileName}`,
+                text: `تقرير: ${fileName}`,
                 url: uriResult.uri,
-                dialogTitle: 'مشاركة التقرير عبر' // سيظهر خيار البلوتوث هنا
+                dialogTitle: 'طباعة / مشاركة التقرير' 
             });
         } else {
-            // للويب المكتبي: تحميل مباشر
             pdf.save(`${fileName}.pdf`);
         }
 
     } catch (error) {
         console.error("Error sharing PDF:", error);
-        alert("حدث خطأ أثناء محاولة إنشاء ملف المشاركة.");
+        alert("حدث خطأ أثناء محاولة إنشاء ملف التقرير.");
     } finally {
-        // تنظيف
         if (document.body.contains(container)) {
             document.body.removeChild(container);
         }
     }
 };
 
-// --- دوال تجهيز المحتوى (تُستخدم للطباعة وللمشاركة) ---
+// --- المولدات ---
 
-export const generateAttendanceSheetHTML = (
-  schoolName: string, gradeName: string, className: string, date: string,
-  students: Student[], attendanceData: Record<string, AttendanceStatus>
+// توليد تقرير لفصل واحد
+const generateSingleClassHTML = (
+    schoolName: string, gradeName: string, className: string, date: string,
+    students: Student[], attendanceData: Record<string, AttendanceStatus>
 ) => {
     const rows = students.map((student, index) => {
         const status = attendanceData[student.id] || AttendanceStatus.PRESENT;
@@ -196,14 +209,40 @@ export const generateAttendanceSheetHTML = (
     }).join('');
 
     return `
-        <div class="print-header">
-        <h1 class="print-title">${schoolName}</h1>
-        <div class="print-subtitle">نظام المتابعة اليومية</div>
-        <div class="print-meta"><span>التاريخ: ${date}</span><span>الصف: ${gradeName}</span><span>الفصل: ${className}</span></div>
+        <div class="report-section">
+            <div class="print-header">
+                <h1 class="print-title">${schoolName}</h1>
+                <div class="print-subtitle">نظام المتابعة اليومية</div>
+                <div class="print-meta"><span>التاريخ: ${date}</span><span>الصف: ${gradeName}</span><span>الفصل: ${className}</span></div>
+            </div>
+            <table><thead><tr><th width="50">#</th><th>اسم الطالب</th><th width="150">الحالة</th><th>ملاحظات</th></tr></thead><tbody>${rows}</tbody></table>
+            <div class="footer-sig"><div>توقيع المعلم: ....................</div><div>ختم الإدارة: ....................</div></div>
         </div>
-        <table><thead><tr><th width="50">#</th><th>اسم الطالب</th><th width="150">الحالة</th><th>ملاحظات</th></tr></thead><tbody>${rows}</tbody></table>
-        <div class="footer-sig"><div>توقيع المعلم: ....................</div><div>ختم الإدارة: ....................</div></div>
     `;
+};
+
+// الدالة المستخدمة من الخارج للطباعة (فصل واحد أو عدة فصول)
+export const generateAttendanceSheetHTML = (
+  schoolName: string, gradeName: string, className: string, date: string,
+  students: Student[], attendanceData: Record<string, AttendanceStatus>
+) => {
+    return generateSingleClassHTML(schoolName, gradeName, className, date, students, attendanceData);
+};
+
+// دالة جديدة: توليد تقرير للصف كاملاً (عدة فصول)
+export const generateGradeDailyReportHTML = (
+    schoolName: string, gradeName: string, date: string,
+    classesData: { className: string, students: Student[] }[],
+    attendanceData: Record<string, AttendanceStatus>
+) => {
+    // نقوم بتوليد HTML لكل فصل ونضع بينهم فاصل صفحات
+    return classesData.map((cls, index) => {
+        const classHtml = generateSingleClassHTML(schoolName, gradeName, cls.className, date, cls.students, attendanceData);
+        // إضافة فاصل صفحات بعد كل فصل ما عدا الأخير
+        return index < classesData.length - 1 
+            ? `${classHtml}<div class="page-break"></div>` 
+            : classHtml;
+    }).join('');
 };
 
 export const generateClassPeriodReportHTML = (
@@ -253,31 +292,41 @@ export const generateStudentReportHTML = (
 };
 
 
-// --- دوال التصدير القديمة (تم تعديلها لتستخدم الدوال المساعدة أعلاه) ---
+// --- دوال التصدير ---
 
-export const printAttendanceSheet = (schoolName: string, gradeName: string, className: string, date: string, students: Student[], attendanceData: Record<string, AttendanceStatus>) => {
-  printHTML(generateAttendanceSheetHTML(schoolName, gradeName, className, date, students, attendanceData));
+// طباعة كشف يومي (صف كامل أو فصل واحد)
+export const printAttendanceSheet = (
+    schoolName: string, gradeName: string, className: string, date: string, 
+    students: Student[], attendanceData: Record<string, AttendanceStatus>,
+    isFullGrade: boolean = false, classesData: { className: string, students: Student[] }[] = []
+) => {
+    let html = '';
+    let fName = '';
+    
+    if (isFullGrade && classesData.length > 0) {
+        html = generateGradeDailyReportHTML(schoolName, gradeName, date, classesData, attendanceData);
+        fName = `تقرير_شامل_${gradeName}_${date}`;
+    } else {
+        html = generateAttendanceSheetHTML(schoolName, gradeName, className, date, students, attendanceData);
+        fName = `كشف_غياب_${className}_${date}`;
+    }
+    
+    printHTML(html, fName);
 };
 
 export const printClassPeriodReport = (schoolName: string, gradeName: string, className: string, startDate: string, endDate: string, stats: StudentPeriodStats[]) => {
-  printHTML(generateClassPeriodReportHTML(schoolName, gradeName, className, startDate, endDate, stats));
+  const html = generateClassPeriodReportHTML(schoolName, gradeName, className, startDate, endDate, stats);
+  printHTML(html, `تقرير_فصل_${className}`);
 };
 
 export const printStudentReport = (schoolName: string, studentName: string, gradeName: string, className: string, records: AttendanceRecord[], periodText?: string) => {
-  printHTML(generateStudentReportHTML(schoolName, studentName, gradeName, className, records, periodText));
+  const html = generateStudentReportHTML(schoolName, studentName, gradeName, className, records, periodText);
+  printHTML(html, `تقرير_الطالب_${studentName}`);
 };
 
-// Summon Letter (Already generates full HTML, just needs wrapper if we want to share it too)
 export const printSummonLetter = (
-    // ... params (kept same as before for compatibility, logic inside is same)
   schoolName: string, districtName: string, studentName: string, gradeName: string, className: string, date: string, time: string, reason: string, issueDate: string, assets?: SchoolAssets
 ) => {
-    // ... (logic from previous implementation regarding HTML generation)
-    // For brevity, assuming the full HTML generation logic is here as before, 
-    // and passing it to printHTML. 
-    // If you need sharing for SummonLetter, we'd extract its HTML generator too.
-    // Given the user asked about "Reports" specifically, I will focus on the report functions above.
-    // Re-implementing the printSummonLetter core logic briefly for completeness:
     
       const committeeSigHtml = assets?.committeeSig ? `<img src="${assets.committeeSig}" style="height: 60px; display: block; margin: 10px auto;" />` : `<p style="margin-top: 40px;">.........................</p>`;
       const principalSigHtml = assets?.principalSig ? `<img src="${assets.principalSig}" style="height: 60px; display: block; margin: 10px auto;" />` : `<p style="margin-top: 40px;">.........................</p>`;
@@ -317,5 +366,5 @@ export const printSummonLetter = (
             </div>
         </div>
       `;
-      printHTML(html);
+      printHTML(html, `استدعاء_${studentName}`);
 };
