@@ -10,7 +10,7 @@ import SummonPage from './components/SummonPage';
 import WelcomeSetup from './components/WelcomeSetup';
 import UserGuide from './components/UserGuide';
 import AboutApp from './components/AboutApp';
-import ActivationPage from './components/ActivationPage';
+import ActivationPage from './components/IntroScreen';
 import { getSchoolSettings, initializeData } from './services/dataService';
 import { isAppActivated } from './services/licenseService';
 import { Loader2, X } from 'lucide-react';
