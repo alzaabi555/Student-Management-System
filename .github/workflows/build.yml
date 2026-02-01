@@ -26,17 +26,26 @@ jobs:
           java-version: '17'
 
       - name: Install Dependencies
-        run: npm install
+        run: |
+          npm install
+          # تثبيت أداة معالجة الأيقونات لضمان استبدال الأيقونة الافتراضية
+          npm install @capacitor/assets --save-dev
 
       - name: Build React App
         run: npm run build
 
       - name: Initialize Android Project
-        # نحاول إضافة أندرويد، وإذا كان موجوداً نتجاوز الخطوة
         run: npx cap add android || true
 
-      - name: Sync Capacitor
-        run: npx cap sync
+      # ---------------------------------------------------
+      # 🚀 خطوة حقن الأيقونة: استبدال أيقونة أندرويد الخضراء بأيقونتك
+      # ---------------------------------------------------
+      - name: Generate & Inject Android Icons
+        run: |
+          # توليد كافة مقاسات الأيقونات من ملف icon.png الموجود في جذر المشروع
+          npx capacitor-assets generate --android --icon icon.png
+          # مزامنة الملفات الجديدة مع مجلد أندرويد المولد
+          npx cap sync android
 
       - name: Build APK
         run: |
@@ -55,7 +64,7 @@ jobs:
   # ---------------------------------------------------
   build-windows:
     runs-on: windows-latest
-    needs: build-android # (اختياري) يمكن إزالته ليعملا في وقت واحد، وضعناه هنا لتقليل الضغط
+    needs: build-android 
     steps:
       - uses: actions/checkout@v4
 
@@ -68,7 +77,6 @@ jobs:
         run: npm install
 
       - name: Build Windows Exe
-        # يقوم هذا الأمر ببناء تطبيق React ثم تحويله لملف exe
         run: npm run electron:build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
