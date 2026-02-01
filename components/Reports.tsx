@@ -9,9 +9,10 @@ import {
     shareHTMLAsPDF, 
     generateAttendanceSheetHTML, 
     generateClassPeriodReportHTML, 
-    generateStudentReportHTML 
+    generateStudentReportHTML,
+    generateGradeDailyReportHTML
 } from '../services/printService';
-import { AttendanceStatus } from '../types';
+import { AttendanceStatus, Student } from '../types';
 
 interface ReportsProps {
     initialStudentId?: string | null;
@@ -82,14 +83,15 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
   [selectedGrade]);
 
   useEffect(() => {
+    // If report type is daily, allow selecting 'ALL', otherwise default to first class
     if (availableClasses.length > 0) {
-        if (!availableClasses.find(c => c.id === selectedClass)) {
+        if (!selectedClass || (selectedClass !== 'ALL' && !availableClasses.find(c => c.id === selectedClass))) {
             setSelectedClass(availableClasses[0].id);
         }
     } else {
         setSelectedClass('');
     }
-  }, [selectedGrade, availableClasses, selectedClass]);
+  }, [selectedGrade, availableClasses]); // Removed selectedClass from deps to prevent loop
 
   // --- Sync Classes & Students Dropdown for Student Report ---
   const stAvailableClasses = useMemo(() => 
@@ -129,6 +131,41 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
   const getClassReportData = () => {
     if (!selectedClass) return null;
     const gradeName = grades.find(g => g.id === selectedGrade)?.name || '';
+    
+    // CASE 1: All Classes (Grade Report)
+    if (selectedClass === 'ALL' && reportType === 'daily') {
+         const gradeClasses = classes.filter(c => c.gradeId === selectedGrade);
+         if (gradeClasses.length === 0) return null;
+
+         const classesData: { className: string, students: Student[] }[] = [];
+         const attendanceMap: Record<string, AttendanceStatus> = {};
+
+         gradeClasses.forEach(c => {
+             const cStudents = students.filter(s => s.classId === c.id);
+             if (cStudents.length > 0) {
+                 classesData.push({ className: c.name, students: cStudents });
+                 cStudents.forEach(s => {
+                     const record = getAttendanceRecord(classDate, s.id);
+                     attendanceMap[s.id] = record ? record.status : AttendanceStatus.PRESENT;
+                 });
+             }
+         });
+         
+         if (classesData.length === 0) return null;
+
+         return { 
+             type: 'daily', 
+             isFullGrade: true,
+             schoolName, 
+             gradeName, 
+             className: 'جميع الفصول', 
+             classDate, 
+             classesData, 
+             attendanceMap 
+         };
+    }
+
+    // CASE 2: Single Class Report
     const className = classes.find(c => c.id === selectedClass)?.name || '';
     
     if (reportType === 'daily') {
@@ -139,11 +176,11 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
             const record = getAttendanceRecord(classDate, s.id);
             attendanceMap[s.id] = record ? record.status : AttendanceStatus.PRESENT;
         });
-        return { type: 'daily', schoolName, gradeName, className, classDate, classStudents, attendanceMap };
+        return { type: 'daily', isFullGrade: false, schoolName, gradeName, className, classDate, classStudents, attendanceMap };
     } else {
         if (!classStartDate || !classEndDate) return null;
         const stats = getClassPeriodStats(selectedClass, classStartDate, classEndDate);
-        return { type: 'period', schoolName, gradeName, className, classStartDate, classEndDate, stats };
+        return { type: 'period', isFullGrade: false, schoolName, gradeName, className, classStartDate, classEndDate, stats };
     }
   };
 
@@ -168,7 +205,17 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
     if (!data) { alert("البيانات غير مكتملة"); return; }
     
     if (data.type === 'daily') {
-        printAttendanceSheet(data.schoolName, data.gradeName, data.className, data.classDate, data.classStudents, data.attendanceMap);
+        // Pass extra params for full grade printing
+        printAttendanceSheet(
+            data.schoolName, 
+            data.gradeName, 
+            data.className, 
+            data.classDate, 
+            data.classStudents || [], 
+            data.attendanceMap,
+            data.isFullGrade,
+            data.classesData
+        );
     } else {
         printClassPeriodReport(data.schoolName, data.gradeName, data.className, data.classStartDate, data.classEndDate, data.stats);
     }
@@ -191,8 +238,13 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
         let html = '';
         let fileName = '';
         if (data.type === 'daily') {
-            html = generateAttendanceSheetHTML(data.schoolName, data.gradeName, data.className, data.classDate, data.classStudents, data.attendanceMap);
-            fileName = `كشف_غياب_${data.className}_${data.classDate}`;
+            if (data.isFullGrade) {
+                html = generateGradeDailyReportHTML(data.schoolName, data.gradeName, data.classDate, data.classesData!, data.attendanceMap);
+                fileName = `تقرير_شامل_${data.gradeName}_${data.classDate}`;
+            } else {
+                html = generateAttendanceSheetHTML(data.schoolName, data.gradeName, data.className, data.classDate, data.classStudents!, data.attendanceMap);
+                fileName = `كشف_غياب_${data.className}_${data.classDate}`;
+            }
         } else {
             html = generateClassPeriodReportHTML(data.schoolName, data.gradeName, data.className, data.classStartDate, data.classEndDate, data.stats);
             fileName = `تقرير_فصل_${data.className}`;
@@ -265,14 +317,14 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
 
                     <div className="flex bg-gray-50 p-1 rounded-lg border border-gray-200 self-start md:self-auto">
                         <button 
-                            onClick={() => setReportType('daily')}
+                            onClick={() => { setReportType('daily'); setSelectedClass(''); }}
                             className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${reportType === 'daily' ? 'bg-white shadow-sm text-blue-700 ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700'}`}
                         >
                             <Calendar size={14} />
                             غياب يومي
                         </button>
                         <button 
-                            onClick={() => setReportType('period')}
+                            onClick={() => { setReportType('period'); setSelectedClass(availableClasses[0]?.id || ''); }}
                             className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${reportType === 'period' ? 'bg-white shadow-sm text-blue-700 ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700'}`}
                         >
                             <CalendarRange size={14} />
@@ -332,9 +384,12 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
                             value={selectedClass}
                             onChange={(e) => setSelectedClass(e.target.value)}
                             disabled={availableClasses.length === 0}
-                            className="form-input text-sm"
+                            className={`form-input text-sm ${selectedClass === 'ALL' ? 'font-bold text-blue-600' : ''}`}
                         >
                             {availableClasses.length === 0 && <option value="">لا توجد فصول</option>}
+                            {reportType === 'daily' && availableClasses.length > 0 && (
+                                <option value="ALL" className="font-bold">-- جميع الفصول --</option>
+                            )}
                             {availableClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     </div>
