@@ -112,13 +112,13 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900 font-sans">
-      {/* Sidebar - Responsive Width Logic Updated */}
+      {/* Sidebar - Responsive Width Logic Updated for All iPads */}
       {/* 
-          Mobile (< md): w-64 (Full width overlay/push)
-          Tablet/Laptop (md -> xl): w-20 (Icons Only - Compact) << THIS IS THE FIX
-          Large Desktop (>= xl): w-64 (Full Sidebar)
+          Mobile (< sm): w-64 (Full width)
+          Tablet/Laptop (sm -> 2xl): w-20 (Icons Only) << Covers iPad Mini Portrait to iPad Pro Landscape
+          Large Desktop (>= 2xl): w-64 (Full Sidebar)
       */}
-      <div className={`flex-shrink-0 transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isSidebarOpen ? 'w-64 md:w-20 xl:w-64' : 'w-0 overflow-hidden'}`}>
+      <div className={`flex-shrink-0 transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isSidebarOpen ? 'w-64 sm:w-20 2xl:w-64' : 'w-0 overflow-hidden'}`}>
         <Sidebar 
           currentPage={page} 
           setPage={setPage} 
