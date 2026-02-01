@@ -1,7 +1,7 @@
 {
   "name": "madrasati-app",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "نظام متكامل لتسجيل الغياب والتسرب المدرسي وإرسال إشعارات لأولياء الأمور عبر واتساب",
   "author": "Madrasati Systems",
   "type": "module",
@@ -47,7 +47,7 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.madrasati.app.v2",
+    "appId": "com.madrasati.app.v3",
     "productName": "نظام مدرستي للإدارة",
     "directories": {
       "output": "dist-electron"
