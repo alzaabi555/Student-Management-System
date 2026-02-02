@@ -37,6 +37,15 @@ body {
   background-color: #94a3b8;
 }
 
+/* Hide Scrollbar for Horizontal Nav */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* --- Components Classes --- */
 .card {
   background-color: white;
