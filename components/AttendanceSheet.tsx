@@ -165,19 +165,22 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({ onNavigate }) => {
         return;
     }
 
-    let message = '';
     const dateStr = new Date(currentDate).toLocaleDateString('ar-EG');
+    const gradeName = grades.find(g => g.id === student.gradeId)?.name || '';
+    const className = classes.find(c => c.id === student.classId)?.name || '';
+    let message = '';
     
+    // Updated Message Format as requested
     switch (status) {
       case AttendanceStatus.ABSENT:
-        message = `عاجل: نفيدكم بغياب الطالب/ة ${student.name} عن المدرسة اليوم ${dateStr}. يرجى التوضيح. إدارة ${schoolName}.`;
+        message = `عاجل: نفيدكم بغياب الطالب/ة (${student.name}) المقيد بالصف (${gradeName} / ${className}) عن المدرسة اليوم ${dateStr}. برجاء ارسال نسخة من الاجازة المرضية او موعد الطبي. إدارة ${schoolName}.`;
         break;
       case AttendanceStatus.TRUANT:
         const periodText = details?.period ? ` (الحصة ${details.period})` : '';
-        message = `تنبيه: قام الطالب/ة ${student.name} بـ "تسرب من الحصة"${periodText} اليوم ${dateStr}. إدارة ${schoolName}.`;
+        message = `تنبيه: قام الطالب/ة (${student.name}) المقيد بالصف (${gradeName} / ${className}) بـ "تسرب من الحصة"${periodText} اليوم ${dateStr}. إدارة ${schoolName}.`;
         break;
       case AttendanceStatus.ESCAPE:
-        message = `هام جداً: قام الطالب/ة ${student.name} بـ "تسرب من المدرسة" اليوم ${dateStr} دون إذن. إدارة ${schoolName}.`;
+        message = `هام جداً: قام الطالب/ة (${student.name}) المقيد بالصف (${gradeName} / ${className}) بـ "تسرب من المدرسة" اليوم ${dateStr} دون إذن. إدارة ${schoolName}.`;
         break;
     }
 

@@ -22,14 +22,14 @@ interface ReportsProps {
 const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) => {
   const [activeTab, setActiveTab] = useState<'class' | 'student'>('class');
   const [schoolName, setSchoolName] = useState('مدرستي');
-  const [isSharing, setIsSharing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // --- Class Report State ---
   const [reportType, setReportType] = useState<'daily' | 'period'>('daily');
   const [classDate, setClassDate] = useState(new Date().toISOString().split('T')[0]);
   const [classStartDate, setClassStartDate] = useState(() => {
     const d = new Date();
-    d.setDate(1); // First day of current month
+    d.setDate(1); 
     return d.toISOString().split('T')[0];
   });
   const [classEndDate, setClassEndDate] = useState(new Date().toISOString().split('T')[0]);
@@ -60,7 +60,7 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
     fetchSettings();
   }, []);
 
-  // --- Deep Link Effect (Handle Initial Student) ---
+  // --- Deep Link Effect ---
   useEffect(() => {
     if (initialStudentId) {
         const student = students.find(s => s.id === initialStudentId);
@@ -68,7 +68,6 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
             setActiveTab('student');
             setStGrade(student.gradeId);
             setStClass(student.classId);
-            // Use setTimeout to allow render cycle to pick up dropdown changes before setting ID
             setTimeout(() => {
                 setSelectedStudentId(student.id);
             }, 0);
@@ -77,13 +76,12 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
     }
   }, [initialStudentId]);
 
-  // --- Sync Classes Dropdown for Class Report ---
+  // --- Dropdowns Sync ---
   const availableClasses = useMemo(() => 
     classes.filter(c => c.gradeId === selectedGrade), 
   [selectedGrade]);
 
   useEffect(() => {
-    // If report type is daily, allow selecting 'ALL', otherwise default to first class
     if (availableClasses.length > 0) {
         if (!selectedClass || (selectedClass !== 'ALL' && !availableClasses.find(c => c.id === selectedClass))) {
             setSelectedClass(availableClasses[0].id);
@@ -91,9 +89,8 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
     } else {
         setSelectedClass('');
     }
-  }, [selectedGrade, availableClasses]); // Removed selectedClass from deps to prevent loop
+  }, [selectedGrade, availableClasses]);
 
-  // --- Sync Classes & Students Dropdown for Student Report ---
   const stAvailableClasses = useMemo(() => 
     classes.filter(c => c.gradeId === stGrade), 
   [stGrade]);
@@ -114,8 +111,6 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
 
   useEffect(() => {
     if (availableStudents.length > 0) {
-        // Only select first if nothing is selected or current selection is invalid
-        // This prevents overwriting the Deep Link selection
         const isCurrentValid = availableStudents.find(s => s.id === selectedStudentId);
         if (!isCurrentValid && !initialStudentId) {
             setSelectedStudentId(availableStudents[0].id);
@@ -127,12 +122,10 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
 
 
   // --- Logic Helpers ---
-
   const getClassReportData = () => {
     if (!selectedClass) return null;
     const gradeName = grades.find(g => g.id === selectedGrade)?.name || '';
     
-    // CASE 1: All Classes (Grade Report)
     if (selectedClass === 'ALL' && reportType === 'daily') {
          const gradeClasses = classes.filter(c => c.gradeId === selectedGrade);
          if (gradeClasses.length === 0) return null;
@@ -165,7 +158,6 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
          };
     }
 
-    // CASE 2: Single Class Report
     const className = classes.find(c => c.id === selectedClass)?.name || '';
     
     if (reportType === 'daily') {
@@ -198,74 +190,40 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
       return { schoolName, studentName: student.name, gradeName, className, history, periodText };
   };
 
-  // --- Print Handlers ---
-
-  const handlePrintClassReport = () => {
+  // --- Handlers ---
+  const handlePrintClassReport = async () => {
+    setIsProcessing(true);
     const data = getClassReportData();
-    if (!data) { alert("البيانات غير مكتملة"); return; }
+    if (!data) { alert("البيانات غير مكتملة"); setIsProcessing(false); return; }
     
-    if (data.type === 'daily') {
-        // Pass extra params for full grade printing
-        printAttendanceSheet(
-            data.schoolName, 
-            data.gradeName, 
-            data.className, 
-            data.classDate, 
-            data.classStudents || [], 
-            data.attendanceMap,
-            data.isFullGrade,
-            data.classesData
-        );
-    } else {
-        printClassPeriodReport(data.schoolName, data.gradeName, data.className, data.classStartDate, data.classEndDate, data.stats);
-    }
-  };
-
-  const handlePrintStudentReport = () => {
-    const data = getStudentReportData();
-    if (!data) { alert("الرجاء اختيار طالب"); return; }
-    printStudentReport(data.schoolName, data.studentName, data.gradeName, data.className, data.history, data.periodText);
-  };
-
-  // --- Share / Bluetooth Handlers ---
-
-  const handleShareClassReport = async () => {
-    const data = getClassReportData();
-    if (!data) { alert("البيانات غير مكتملة"); return; }
-    
-    setIsSharing(true);
     try {
-        let html = '';
-        let fileName = '';
         if (data.type === 'daily') {
-            if (data.isFullGrade) {
-                html = generateGradeDailyReportHTML(data.schoolName, data.gradeName, data.classDate, data.classesData!, data.attendanceMap);
-                fileName = `تقرير_شامل_${data.gradeName}_${data.classDate}`;
-            } else {
-                html = generateAttendanceSheetHTML(data.schoolName, data.gradeName, data.className, data.classDate, data.classStudents!, data.attendanceMap);
-                fileName = `كشف_غياب_${data.className}_${data.classDate}`;
-            }
+            await printAttendanceSheet(
+                data.schoolName, 
+                data.gradeName, 
+                data.className, 
+                data.classDate, 
+                data.classStudents || [], 
+                data.attendanceMap,
+                data.isFullGrade,
+                data.classesData
+            );
         } else {
-            html = generateClassPeriodReportHTML(data.schoolName, data.gradeName, data.className, data.classStartDate, data.classEndDate, data.stats);
-            fileName = `تقرير_فصل_${data.className}`;
+            await printClassPeriodReport(data.schoolName, data.gradeName, data.className, data.classStartDate, data.classEndDate, data.stats);
         }
-        await shareHTMLAsPDF(html, fileName);
     } finally {
-        setIsSharing(false);
+        setIsProcessing(false);
     }
   };
 
-  const handleShareStudentReport = async () => {
+  const handlePrintStudentReport = async () => {
+    setIsProcessing(true);
     const data = getStudentReportData();
-    if (!data) { alert("الرجاء اختيار طالب"); return; }
-    
-    setIsSharing(true);
+    if (!data) { alert("الرجاء اختيار طالب"); setIsProcessing(false); return; }
     try {
-        const html = generateStudentReportHTML(data.schoolName, data.studentName, data.gradeName, data.className, data.history, data.periodText);
-        const fileName = `تقرير_الطالب_${data.studentName.replace(/\s+/g, '_')}`;
-        await shareHTMLAsPDF(html, fileName);
+        await printStudentReport(data.schoolName, data.studentName, data.gradeName, data.className, data.history, data.periodText);
     } finally {
-        setIsSharing(false);
+        setIsProcessing(false);
     }
   };
 
@@ -308,7 +266,6 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
         {/* TAB 1: CLASS REPORT */}
         {activeTab === 'class' && (
             <div className="space-y-6">
-                {/* ... (Existing Filters UI - Same as before) ... */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-gray-100">
                     <div>
                         <h3 className="font-bold text-lg text-slate-800">تقرير الفصل الدراسي</h3>
@@ -395,23 +352,14 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
                     </div>
                 </div>
 
-                {/* --- Buttons Area --- */}
                 <div className="flex justify-end pt-6 border-t border-gray-100 mt-4 gap-3">
                     <button 
-                        onClick={handleShareClassReport}
-                        disabled={!selectedClass || isSharing}
-                        className="btn bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm border-transparent"
-                    >
-                         {isSharing ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Share2 size={18} />}
-                        مشاركة / بلوتوث
-                    </button>
-                    <button 
                         onClick={handlePrintClassReport}
-                        disabled={!selectedClass}
-                        className="btn btn-secondary border-blue-200 text-blue-700 hover:bg-blue-50"
+                        disabled={!selectedClass || isProcessing}
+                        className="btn bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm border-transparent w-full md:w-auto"
                     >
-                        <Printer size={18} />
-                        طباعة
+                         {isProcessing ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Printer size={18} />}
+                         <span className="mr-2">طباعة / مشاركة PDF</span>
                     </button>
                 </div>
             </div>
@@ -420,40 +368,6 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
         {/* TAB 2: STUDENT REPORT */}
         {activeTab === 'student' && (
             <div className="space-y-6">
-                
-                {/* --- QUICK ACTIONS HEADER --- */}
-                {selectedStudentId && (
-                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex flex-col sm:flex-row justify-between items-center gap-4 animate-fadeIn shadow-sm">
-                      <div className="flex items-center gap-3">
-                         <div className="bg-white p-2 rounded-full text-blue-600 border border-blue-100 shadow-sm">
-                            <FileText size={24} />
-                         </div>
-                         <div>
-                             <h4 className="font-bold text-blue-900 text-lg">{selectedStudentName}</h4>
-                             <p className="text-xs text-blue-600 font-medium">التقرير جاهز للإجراء</p>
-                         </div>
-                      </div>
-                      <div className="flex gap-2">
-                          <button 
-                            onClick={handleShareStudentReport}
-                            disabled={isSharing}
-                            className="btn bg-indigo-600 text-white hover:bg-indigo-700 shadow-md border-transparent"
-                          >
-                             {isSharing ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Share2 size={18} />}
-                            مشاركة / بلوتوث
-                          </button>
-                          <button 
-                            onClick={handlePrintStudentReport}
-                            className="btn bg-white text-blue-700 hover:bg-blue-50 border border-blue-200"
-                          >
-                            <Printer size={18} />
-                            طباعة
-                          </button>
-                      </div>
-                   </div>
-                )}
-                {/* ------------------------------- */}
-
                  <div className="pb-4 border-b border-gray-100">
                     <h3 className="font-bold text-lg text-slate-800">بيانات التقرير</h3>
                     <p className="text-gray-500 text-sm">يمكنك تغيير الطالب أو الفترة الزمنية من هنا</p>
@@ -496,7 +410,6 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
                     </div>
                 </div>
 
-                {/* Date Filter for Student */}
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mt-2">
                     <h4 className="text-xs font-bold text-slate-500 mb-3 flex items-center gap-2">
                         <Filter size={14} />
@@ -522,6 +435,17 @@ const Reports: React.FC<ReportsProps> = ({ initialStudentId, onClearInitial }) =
                             />
                         </div>
                     </div>
+                </div>
+
+                <div className="flex justify-end pt-6 border-t border-gray-100 mt-4 gap-3">
+                    <button 
+                        onClick={handlePrintStudentReport}
+                        disabled={!selectedStudentId || isProcessing}
+                        className="btn bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm border-transparent w-full md:w-auto"
+                    >
+                         {isProcessing ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Printer size={18} />}
+                         <span className="mr-2">طباعة / مشاركة PDF</span>
+                    </button>
                 </div>
             </div>
         )}
