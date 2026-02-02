@@ -50,7 +50,7 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.madrasati.app.v2",
+    "appId": "com.walid.madrasati.manager.v2",
     "productName": "نظام مدرستي للإدارة",
     "directories": {
       "output": "dist-electron"

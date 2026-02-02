@@ -1,7 +1,9 @@
+
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.madrasati.app',
+  // تغيير المعرف ليكون فريداً جداً (اسم المطور + اسم المشروع + الوظيفة)
+  appId: 'com.walid.madrasati.manager.v2', 
   appName: 'مدرستي',
   webDir: 'dist',
   server: {
