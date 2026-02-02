@@ -7,191 +7,198 @@ import { Capacitor } from '@capacitor/core';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
+// --- الثوابت ---
+const A4_WIDTH_MM = 210;
+const A4_HEIGHT_MM = 297;
+const A4_WIDTH_PX = 794; // 210mm @ 96dpi approx
+const A4_HEIGHT_PX = 1123; // 297mm @ 96dpi approx
+
 /**
- * دالة الطباعة الذكية
+ * المحرك الأساسي للطباعة والمشاركة
+ * يقوم بتحديد الاستراتيجية المناسبة بناءً على نوع الجهاز
  */
-const printHTML = async (contentBody: string, title: string = 'تقرير') => {
-  if (Capacitor.isNativePlatform()) {
-      try {
-        await shareHTMLAsPDF(contentBody, title);
-      } catch (e) {
-        console.error("Android Print Error", e);
-        alert("حدث خطأ أثناء تحضير الملف للطباعة.");
-      }
-      return;
-  }
+const executeOutputStrategy = async (contentHTML: string, fileName: string) => {
+    const isNative = Capacitor.isNativePlatform();
 
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentWindow?.document;
-  if (!doc) return;
-
-  doc.open();
-  doc.write(getReportHTMLStructure(contentBody));
-  doc.close();
-
-  setTimeout(() => {
-    if (iframe.contentWindow) {
-        iframe.contentWindow.focus();
-        try {
-            iframe.contentWindow.print();
-        } catch (e) {
-            console.error("Print error:", e);
-        }
+    if (isNative) {
+        // استراتيجية الموبايل (أندرويد/آيفون): توليد PDF + مشاركة
+        await generateAndSharePDF(contentHTML, fileName);
+    } else {
+        // استراتيجية الكمبيوتر (ويندوز/ويب): الطباعة المباشرة عبر المتصفح
+        await printDirectlyOnWeb(contentHTML);
     }
-    setTimeout(() => {
-        if (document.body.contains(iframe)) {
-            document.body.removeChild(iframe);
-        }
-    }, 5000); 
-  }, 500);
 };
 
-// هيكل HTML الموحد
-const getReportHTMLStructure = (bodyContent: string) => `
-    <!DOCTYPE html>
-    <html dir="rtl">
-    <head>
-      <meta charset="UTF-8">
-      <title>تقرير</title>
-      <style>
-        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap');
-        
-        body { 
-            font-family: 'Tajawal', sans-serif; 
-            background-color: white; 
-            color: black; 
-            margin: 0;
-            padding: 20px;
-            direction: rtl;
-        }
-
-        .print-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 30px; }
-        .print-title { font-size: 24px; font-weight: 800; margin: 0; }
-        .print-subtitle { font-size: 16px; color: #444; margin-top: 5px; }
-        .print-meta { display: flex; justify-content: space-between; margin-top: 20px; font-weight: bold; font-size: 14px; border: 1px solid #000; padding: 10px; border-radius: 5px; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
-        th, td { border: 1px solid #000; padding: 8px; text-align: center; }
-        th { background-color: #f0f0f0 !important; -webkit-print-color-adjust: exact; font-weight: bold; }
-        
-        .status-absent { background-color: #ffe4e6 !important; -webkit-print-color-adjust: exact; font-weight: bold; }
-        .status-truant { background-color: #fef3c7 !important; -webkit-print-color-adjust: exact; }
-        
-        /* فواصل الصفحات للطباعة المتعددة */
-        .page-break { page-break-after: always; display: block; height: 1px; margin: 30px 0; border-bottom: 1px dashed #ccc; }
-        .report-section { margin-bottom: 40px; page-break-inside: avoid; }
-
-        .footer-sig { margin-top: 50px; display: flex; justify-content: space-between; page-break-inside: avoid; padding: 0 50px; }
-
-        @media print {
-            @page { size: A4; margin: 10mm; }
-            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .page-break { border: none; height: 0; }
-        }
-      </style>
-    </head>
-    <body>
-      ${bodyContent}
-    </body>
-    </html>
-`;
-
 /**
- * دالة توليد PDF ذكية تدعم تعدد الصفحات
+ * استراتيجية الموبايل: توليد PDF ومشاركته
+ * الحل الجذري لمشاكل الطباعة في الأندرويد
  */
-export const shareHTMLAsPDF = async (contentBody: string, fileName: string) => {
+const generateAndSharePDF = async (contentHTML: string, fileName: string) => {
+    // 1. إنشاء حاوية وهمية خارج الشاشة بأبعاد A4 ثابتة
     const container = document.createElement('div');
     container.style.position = 'fixed';
-    container.style.top = '-9999px';
-    container.style.left = '0';
-    container.style.width = '210mm'; // عرض A4 بالضبط
+    container.style.top = '0';
+    container.style.left = '-9999px';
+    container.style.width = '210mm'; // عرض ثابت بالمليمتر
     container.style.minHeight = '297mm';
     container.style.backgroundColor = '#ffffff';
-    container.style.zIndex = '-100';
+    container.style.zIndex = '-1000';
     
-    container.innerHTML = getReportHTMLStructure(contentBody);
+    // حقن المحتوى وتطبيق CSS الخاص بالطباعة داخله
+    container.innerHTML = getReportHTMLStructure(contentHTML, false);
     document.body.appendChild(container);
 
     try {
-        await new Promise(resolve => setTimeout(resolve, 800)); // انتظار أطول قليلاً للرندر
+        // انتظار لحظي للتأكد من تحميل الصور (الشعارات)
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        const canvas = await html2canvas(container, {
-            scale: 2,
-            useCORS: true,
+        // 2. التحويل إلى صورة باستخدام الخدعة (windowWidth)
+        const canvas = await html2canvas(container.querySelector('.report-container') as HTMLElement, {
+            scale: 2, // دقة عالية
+            useCORS: true, // للسماح بتحميل الصور
             logging: false,
-            windowWidth: 794 // تقريباً عرض A4 بالبكسل عند 96 DPI
+            width: A4_WIDTH_PX, // إجبار العرض بالبكسل
+            windowWidth: A4_WIDTH_PX, // خدعة: إيهام المتصفح بأن الشاشة عريضة لمنع تداخل النصوص
+            windowHeight: A4_HEIGHT_PX
         });
 
-        const imgData = canvas.toDataURL('image/png');
-        
-        // إعدادات PDF للصفحات المتعددة
-        const imgWidth = 210; // مم (عرض A4)
-        const pageHeight = 295; // مم (ارتفاع A4 - هامش بسيط)
+        // 3. إنشاء ملف PDF
+        const imgData = canvas.toDataURL('image/jpeg', 0.7);
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgWidth = A4_WIDTH_MM;
         const imgHeight = (canvas.height * imgWidth) / canvas.width;
         
         let heightLeft = imgHeight;
         let position = 0;
-
-        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageHeight = A4_HEIGHT_MM;
 
         // الصفحة الأولى
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
 
-        // باقي الصفحات (إذا كان المحتوى طويلاً)
-        while (heightLeft >= 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
+        // الصفحات التالية (إذا كان التقرير طويلاً)
+        while (heightLeft > 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
         }
-        
-        if (Capacitor.isNativePlatform()) {
-            const base64Data = pdf.output('datauristring').split(',')[1];
-            const safeFileName = `${fileName.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
 
-            await Filesystem.writeFile({
-                path: safeFileName,
-                data: base64Data,
-                directory: Directory.Cache
-            });
+        // 4. حفظ الملف في الكاش ومشاركته
+        const base64Data = pdf.output('datauristring').split(',')[1];
+        const safeFileName = `${fileName.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
 
-            const uriResult = await Filesystem.getUri({
-                directory: Directory.Cache,
-                path: safeFileName
-            });
+        await Filesystem.writeFile({
+            path: safeFileName,
+            data: base64Data,
+            directory: Directory.Cache
+        });
 
-            await Share.share({
-                title: fileName,
-                text: `تقرير: ${fileName}`,
-                url: uriResult.uri,
-                dialogTitle: 'طباعة / مشاركة التقرير' 
-            });
-        } else {
-            pdf.save(`${fileName}.pdf`);
-        }
+        const uriResult = await Filesystem.getUri({
+            directory: Directory.Cache,
+            path: safeFileName
+        });
+
+        await Share.share({
+            title: fileName,
+            text: `تم إنشاء التقرير: ${fileName}`,
+            url: uriResult.uri,
+            dialogTitle: 'طباعة / مشاركة التقرير' 
+        });
 
     } catch (error) {
-        console.error("Error sharing PDF:", error);
-        alert("حدث خطأ أثناء محاولة إنشاء ملف التقرير.");
+        console.error("PDF Generation Error:", error);
+        alert("حدث خطأ أثناء معالجة الملف للطباعة. يرجى المحاولة مرة أخرى.");
     } finally {
-        if (document.body.contains(container)) {
-            document.body.removeChild(container);
-        }
+        // تنظيف الذاكرة
+        document.body.removeChild(container);
     }
 };
 
-// --- المولدات ---
+/**
+ * استراتيجية الويب/الكمبيوتر: الطباعة المباشرة
+ */
+const printDirectlyOnWeb = async (contentBody: string) => {
+    const printMount = document.getElementById('print-mount');
+    if (!printMount) return;
 
-// توليد تقرير لفصل واحد
+    printMount.innerHTML = getReportHTMLStructure(contentBody, true);
+    document.body.classList.add('printing');
+    
+    // انتظار تحميل الصور
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    window.print();
+
+    // التنظيف
+    setTimeout(() => {
+        document.body.classList.remove('printing');
+        printMount.innerHTML = '';
+    }, 500);
+};
+
+// --- CSS وهيكل التقرير ---
+const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false) => `
+      ${!isWebPrint ? '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"></head><body>' : ''}
+      <div class="report-container">
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap');
+            
+            * { box-sizing: border-box; }
+            body { margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            
+            .report-container { 
+                width: 210mm; 
+                min-height: 297mm; 
+                padding: 15mm; 
+                margin: 0 auto; 
+                background: white; 
+                color: black;
+                position: relative;
+            }
+
+            .print-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 30px; }
+            .print-title { font-size: 24px; font-weight: 800; margin: 0; }
+            .print-subtitle { font-size: 16px; color: #444; margin-top: 5px; font-weight: bold; }
+            
+            .print-meta { 
+                display: flex; 
+                justify-content: space-between; 
+                margin-top: 20px; 
+                font-weight: bold; 
+                font-size: 14px; 
+                border: 1px solid #000; 
+                padding: 10px; 
+                border-radius: 5px; 
+                background-color: #f9f9f9;
+            }
+            
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+            th, td { border: 1px solid #000; padding: 10px 8px; text-align: center; }
+            th { background-color: #e5e7eb !important; font-weight: 800; }
+            
+            .status-absent { background-color: #ffe4e6 !important; }
+            .status-truant { background-color: #fef3c7 !important; }
+            
+            .footer-sig { margin-top: 50px; display: flex; justify-content: space-between; padding: 0 40px; }
+            .footer-sig div { text-align: center; font-weight: bold; }
+            
+            /* فواصل الصفحات للتقارير الطويلة */
+            .page-break { page-break-after: always; display: block; height: 1px; border-bottom: 1px dashed #ccc; margin: 30px 0; }
+            
+            /* تنسيق خاص للويب عند الطباعة المباشرة */
+            @media print {
+                .report-container { width: 100%; max-width: none; padding: 0; margin: 0; border: none; }
+                .page-break { border: none; }
+            }
+        </style>
+        ${bodyContent}
+      </div>
+      ${!isWebPrint ? '</body></html>' : ''}
+`;
+
+// --- دوال بناء المحتوى HTML ---
+
 const generateSingleClassHTML = (
     schoolName: string, gradeName: string, className: string, date: string,
     students: Student[], attendanceData: Record<string, AttendanceStatus>
@@ -216,12 +223,66 @@ const generateSingleClassHTML = (
                 <div class="print-meta"><span>التاريخ: ${date}</span><span>الصف: ${gradeName}</span><span>الفصل: ${className}</span></div>
             </div>
             <table><thead><tr><th width="50">#</th><th>اسم الطالب</th><th width="150">الحالة</th><th>ملاحظات</th></tr></thead><tbody>${rows}</tbody></table>
-            <div class="footer-sig"><div>توقيع المعلم: ....................</div><div>ختم الإدارة: ....................</div></div>
+            <div class="footer-sig"><div>توقيع المعلم</div><div>ختم الإدارة</div></div>
         </div>
     `;
 };
 
-// الدالة المستخدمة من الخارج للطباعة (فصل واحد أو عدة فصول)
+// مولد تقرير الغياب اليومي (الجديد)
+export const generateDailyAbsenceReportHTML = (
+    schoolName: string,
+    date: string,
+    absentStudents: any[]
+) => {
+    const rows = absentStudents.map((student, index) => {
+        let statusText = 'غائب';
+        let rowClass = 'status-absent';
+        
+        if (student.status === AttendanceStatus.TRUANT) { 
+            statusText = 'تسرب من الحصة'; 
+            rowClass = 'status-truant'; 
+        } 
+        else if (student.status === AttendanceStatus.ESCAPE) { 
+            statusText = 'تسرب من المدرسة'; 
+            rowClass = 'status-truant'; 
+        }
+        
+        return `<tr class="${rowClass}">
+            <td>${index + 1}</td>
+            <td style="text-align: right; font-weight: bold;">${student.name}</td>
+            <td>${student.gradeName} / ${student.className}</td>
+            <td>${statusText}</td>
+            <td>${student.parentPhone}</td>
+        </tr>`;
+    }).join('');
+
+    return `
+        <div class="report-section">
+            <div class="print-header">
+                <h1 class="print-title">${schoolName}</h1>
+                <div class="print-subtitle">تقرير الغياب اليومي</div>
+                <div class="print-meta"><span>التاريخ: ${date}</span><span>عدد الحالات: ${absentStudents.length}</span></div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th width="50">#</th>
+                        <th>اسم الطالب</th>
+                        <th>الصف / الشعبة</th>
+                        <th>الحالة</th>
+                        <th>رقم ولي الأمر</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <div class="footer-sig">
+                <div>مسؤول السجل</div>
+                <div>مدير المدرسة</div>
+            </div>
+        </div>
+    `;
+};
+
 export const generateAttendanceSheetHTML = (
   schoolName: string, gradeName: string, className: string, date: string,
   students: Student[], attendanceData: Record<string, AttendanceStatus>
@@ -229,16 +290,14 @@ export const generateAttendanceSheetHTML = (
     return generateSingleClassHTML(schoolName, gradeName, className, date, students, attendanceData);
 };
 
-// دالة جديدة: توليد تقرير للصف كاملاً (عدة فصول)
 export const generateGradeDailyReportHTML = (
     schoolName: string, gradeName: string, date: string,
     classesData: { className: string, students: Student[] }[],
     attendanceData: Record<string, AttendanceStatus>
 ) => {
-    // نقوم بتوليد HTML لكل فصل ونضع بينهم فاصل صفحات
     return classesData.map((cls, index) => {
         const classHtml = generateSingleClassHTML(schoolName, gradeName, cls.className, date, cls.students, attendanceData);
-        // إضافة فاصل صفحات بعد كل فصل ما عدا الأخير
+        // إضافة فاصل صفحات في حالة تعدد الفصول، لكن ليس في الصفحة الأخيرة
         return index < classesData.length - 1 
             ? `${classHtml}<div class="page-break"></div>` 
             : classHtml;
@@ -256,13 +315,15 @@ export const generateClassPeriodReportHTML = (
   }).join('');
 
   return `
-    <div class="print-header">
-      <h1 class="print-title">${schoolName}</h1>
-      <div class="print-subtitle">تقرير متابعة فصل (إحصائي)</div>
-      <div class="print-meta"><span>الفترة: من ${startDate} إلى ${endDate}</span><span>الصف: ${gradeName}</span><span>الفصل: ${className}</span></div>
+    <div class="report-section">
+        <div class="print-header">
+        <h1 class="print-title">${schoolName}</h1>
+        <div class="print-subtitle">تقرير متابعة فصل (إحصائي)</div>
+        <div class="print-meta"><span>الفترة: من ${startDate} إلى ${endDate}</span><span>الصف: ${gradeName}</span><span>الفصل: ${className}</span></div>
+        </div>
+        <table><thead><tr><th width="50">#</th><th>اسم الطالب</th><th>عدد أيام الغياب</th><th>تسرب من الحصة</th><th>تسرب من المدرسة</th><th>الإجمالي</th></tr></thead><tbody>${rows}</tbody></table>
+        <div class="footer-sig"><div>الأخصائي الاجتماعي</div><div>مدير المدرسة</div></div>
     </div>
-    <table><thead><tr><th width="50">#</th><th>اسم الطالب</th><th>عدد أيام الغياب</th><th>تسرب من الحصة</th><th>تسرب من المدرسة</th><th>الإجمالي</th></tr></thead><tbody>${rows}</tbody></table>
-    <div class="footer-sig"><div>الأخصائي الاجتماعي: ....................</div><div>مدير المدرسة: ....................</div></div>
   `;
 };
 
@@ -280,21 +341,29 @@ export const generateStudentReportHTML = (
   }).join('');
 
   return `
-    <div class="print-header">
-      <h1 class="print-title">${schoolName}</h1>
-      <div class="print-subtitle">تقرير حالة طالب</div>
-      <div class="print-meta"><span>الطالب: ${studentName}</span><span>${periodText || 'سجل كامل'}</span><span>الفصل: ${className}</span></div>
+    <div class="report-section">
+        <div class="print-header">
+        <h1 class="print-title">${schoolName}</h1>
+        <div class="print-subtitle">تقرير حالة طالب</div>
+        <div class="print-meta"><span>الطالب: ${studentName}</span><span>${periodText || 'سجل كامل'}</span><span>الفصل: ${className}</span></div>
+        </div>
+        <div style="margin: 20px 0;"><h3>سجل المخالفات (غياب / تسرب):</h3></div>
+        <table><thead><tr><th width="50">#</th><th width="120">التاريخ</th><th>الحالة</th><th>تفاصيل</th></tr></thead><tbody>${recordsRows}</tbody></table>
+        <div class="footer-sig" style="margin-top: 60px;"><div>توقيع ولي الأمر بالعلم</div><div>الأخصائي الاجتماعي</div></div>
     </div>
-    <div style="margin: 20px 0;"><h3>سجل المخالفات (غياب / تسرب):</h3></div>
-    <table><thead><tr><th width="50">#</th><th width="120">التاريخ</th><th>الحالة</th><th>تفاصيل</th></tr></thead><tbody>${recordsRows}</tbody></table>
-    <div class="footer-sig" style="margin-top: 60px;"><div>توقيع ولي الأمر بالعلم: ....................</div><div>الأخصائي الاجتماعي: ....................</div></div>
   `;
 };
 
+/**
+ * دالة المشاركة PDF (التي يستخدمها زر المشاركة/بلوتوث)
+ * الآن تستخدم نفس منطق الطباعة الذكي في الأندرويد
+ */
+export const shareHTMLAsPDF = async (contentBody: string, fileName: string) => {
+    await executeOutputStrategy(contentBody, fileName);
+};
 
-// --- دوال التصدير ---
+// --- دوال التصدير (الموجهة للزر) ---
 
-// طباعة كشف يومي (صف كامل أو فصل واحد)
 export const printAttendanceSheet = (
     schoolName: string, gradeName: string, className: string, date: string, 
     students: Student[], attendanceData: Record<string, AttendanceStatus>,
@@ -311,32 +380,36 @@ export const printAttendanceSheet = (
         fName = `كشف_غياب_${className}_${date}`;
     }
     
-    printHTML(html, fName);
+    executeOutputStrategy(html, fName);
 };
 
 export const printClassPeriodReport = (schoolName: string, gradeName: string, className: string, startDate: string, endDate: string, stats: StudentPeriodStats[]) => {
   const html = generateClassPeriodReportHTML(schoolName, gradeName, className, startDate, endDate, stats);
-  printHTML(html, `تقرير_فصل_${className}`);
+  executeOutputStrategy(html, `تقرير_فصل_${className}`);
 };
 
 export const printStudentReport = (schoolName: string, studentName: string, gradeName: string, className: string, records: AttendanceRecord[], periodText?: string) => {
   const html = generateStudentReportHTML(schoolName, studentName, gradeName, className, records, periodText);
-  printHTML(html, `تقرير_الطالب_${studentName}`);
+  executeOutputStrategy(html, `تقرير_الطالب_${studentName}`);
+};
+
+export const printDailyAbsenceReport = (schoolName: string, date: string, absentStudents: any[]) => {
+    const html = generateDailyAbsenceReportHTML(schoolName, date, absentStudents);
+    executeOutputStrategy(html, `غياب_يوم_${date}`);
 };
 
 export const printSummonLetter = (
   schoolName: string, districtName: string, studentName: string, gradeName: string, className: string, date: string, time: string, reason: string, issueDate: string, assets?: SchoolAssets
 ) => {
-    
       const committeeSigHtml = assets?.committeeSig ? `<img src="${assets.committeeSig}" style="height: 60px; display: block; margin: 10px auto;" />` : `<p style="margin-top: 40px;">.........................</p>`;
       const principalSigHtml = assets?.principalSig ? `<img src="${assets.principalSig}" style="height: 60px; display: block; margin: 10px auto;" />` : `<p style="margin-top: 40px;">.........................</p>`;
       const stampHtml = assets?.schoolStamp ? `<div style="text-align: center;"><img src="${assets.schoolStamp}" style="width: 120px; opacity: 0.8;" /></div>` : ``;
-      const headerLogoHtml = assets?.headerLogo ? `<img src="${assets.headerLogo}" alt="الشعار" style="height: 80px; width: auto; margin: 0 auto; display: block;" />` : `<img src="/assets/logo.png" alt="الشعار" style="height: 80px; width: auto; margin: 0 auto; display: block;" />`;
+      const headerLogoHtml = assets?.headerLogo ? `<img src="${assets.headerLogo}" alt="الشعار" style="height: 80px; width: auto; margin: 0 auto; display: block;" />` : ``;
     
       const html = `
-        <div style="border: 4px double #000; padding: 40px; margin: 0 auto; min-height: 90vh; box-sizing: border-box; position: relative; background: #fff;">
-            <div style="text-align: center; margin-bottom: 40px; line-height: 1.8; color: #000; direction: rtl;">
-              <div style="margin-bottom: 15px;">${headerLogoHtml}</div>
+        <div style="border: 4px double #000; padding: 40px; min-height: 850px; box-sizing: border-box; position: relative;">
+            <div style="text-align: center; margin-bottom: 40px; line-height: 1.6; color: #000; direction: rtl;">
+              <div style="margin-bottom: 10px;">${headerLogoHtml}</div>
               <div style="font-size: 20px; font-weight: bold;">سلطنة عُمان</div>
               <div style="font-size: 20px; font-weight: bold;">وزارة التربية والتعليم</div>
               <div style="font-size: 18px; font-weight: bold;">المديرية العامة للتربية والتعليم لمحافظة ${districtName}</div>
@@ -353,7 +426,7 @@ export const printSummonLetter = (
                 <div style="text-align: center; margin: 30px 0; font-weight: bold; font-size: 22px; text-decoration: underline; text-underline-offset: 8px;">السلام علیکم ورحمة الله وبرکاته</div>
                 <div style="text-align: justify; text-align-last: right;">
                     <p style="margin-bottom: 10px;">نظراً لأهمية التعاون بين المدرسة وولي الأمر فيما يخدم مصلحة الطالب، ويحقق له النجاح، نأمل منكم الحضور إلى المدرسة لبحث بعض الأمور المتعلقة بابنكم:</p>
-                    <div style="text-align: center; margin: 25px 0; font-weight: bold; font-size: 20px;">( ${reason} )</div>
+                    <div style="text-align: center; margin: 25px 0; font-weight: bold; font-size: 20px; background-color: #f0f0f0; border-radius: 5px; padding: 5px;">( ${reason} )</div>
                     <p>ولنا في حضوركم أمل بهدف التعاون بين البيت والمدرسة لتحقيق الرسالة التربوية الهادفة التي نسعى إليها، وتأمل المدرسة حضوركم في أقرب فرصة ممكنة لديكم.</p>
                 </div>
                 <p style="margin-top: 30px; font-size: 16px; color: #555; text-align: center; border: 1px solid #ddd; padding: 10px; border-radius: 5px; background: #fafafa;">* الموعد المقترح: يوم <strong>${date}</strong> الساعة <strong>${time}</strong>.</p>
@@ -366,5 +439,5 @@ export const printSummonLetter = (
             </div>
         </div>
       `;
-      printHTML(html, `استدعاء_${studentName}`);
+      executeOutputStrategy(html, `استدعاء_${studentName}`);
 };
