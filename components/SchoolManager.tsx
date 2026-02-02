@@ -2,6 +2,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Layers, Plus, Trash2, Folder, GraduationCap, AlertCircle, Database, Download, Upload, RefreshCw, AlertTriangle, Image as ImageIcon, Check } from 'lucide-react';
 import { grades, classes, addGrade, deleteGrade, addClass, deleteClass, exportDatabase, importDatabase, resetDatabase, getSchoolAssets, saveSchoolAssets } from '../services/dataService';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
 
 const SchoolManager: React.FC = () => {
   const [selectedGradeId, setSelectedGradeId] = useState<string | null>(grades.length > 0 ? grades[0].id : null);
@@ -82,22 +85,54 @@ const SchoolManager: React.FC = () => {
       }
   };
   
-  // --- Backup Functions ---
+  // --- Backup Functions (Updated for Android) ---
   const handleBackup = async () => {
+      setIsProcessing(true);
       try {
           const json = await exportDatabase();
-          const blob = new Blob([json], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
           const date = new Date().toISOString().split('T')[0];
-          a.download = `Madrasati_Backup_${date}.json`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
+          const fileName = `Madrasati_Backup_${date}.json`;
+
+          if (Capacitor.isNativePlatform()) {
+              // --- استراتيجية الأندرويد/الموبايل ---
+              // 1. كتابة الملف في مجلد الكاش
+              await Filesystem.writeFile({
+                  path: fileName,
+                  data: json,
+                  directory: Directory.Cache,
+                  encoding: Encoding.UTF8
+              });
+
+              // 2. الحصول على مسار الملف
+              const uriResult = await Filesystem.getUri({
+                  directory: Directory.Cache,
+                  path: fileName
+              });
+
+              // 3. مشاركة الملف (تسمح بالحفظ في Drive، الواتساب، أو الملفات)
+              await Share.share({
+                  title: 'نسخة احتياطية - مدرستي',
+                  text: `نسخة احتياطية لقاعدة بيانات النظام بتاريخ ${date}`,
+                  url: uriResult.uri,
+                  dialogTitle: 'حفظ النسخة الاحتياطية'
+              });
+          } else {
+              // --- استراتيجية الكمبيوتر/الويب ---
+              const blob = new Blob([json], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = fileName;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+          }
       } catch (err) {
-          alert("فشل إنشاء النسخة الاحتياطية");
+          console.error("Backup Error:", err);
+          alert("فشل إنشاء النسخة الاحتياطية. يرجى المحاولة مرة أخرى.");
+      } finally {
+          setIsProcessing(false);
       }
   };
 
@@ -286,12 +321,12 @@ const SchoolManager: React.FC = () => {
               {/* Backup */}
               <div className="flex flex-col gap-3 p-4 border border-blue-100 bg-blue-50/30 rounded-xl items-center text-center">
                   <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-1">
-                      <Download size={24} />
+                      {isProcessing ? <RefreshCw className="animate-spin" size={24} /> : <Download size={24} />}
                   </div>
                   <h4 className="font-bold text-slate-800">حفظ نسخة احتياطية</h4>
-                  <p className="text-xs text-gray-500 mb-2">تنزيل ملف كامل لبيانات المدرسة</p>
-                  <button onClick={handleBackup} className="btn bg-white border border-blue-200 text-blue-700 hover:bg-blue-600 hover:text-white w-full text-xs">
-                      تنزيل البيانات
+                  <p className="text-xs text-gray-500 mb-2">حفظ ملف البيانات (Drive/واتساب)</p>
+                  <button onClick={handleBackup} disabled={isProcessing} className="btn bg-white border border-blue-200 text-blue-700 hover:bg-blue-600 hover:text-white w-full text-xs">
+                      {isProcessing ? 'جاري الحفظ...' : 'حفظ / مشاركة النسخة'}
                   </button>
               </div>
 
