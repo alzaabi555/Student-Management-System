@@ -11,8 +11,8 @@ import jsPDF from 'jspdf';
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297; 
 const A4_WIDTH_PX = 794; 
-// رفع عدد الطلاب إلى 30 في الصفحة الواحدة
-const ROWS_PER_PAGE = 30; 
+// تم تعديل عدد الطلاب ليتناسب مع التصميم الجديد المريح (22 طالب للصفحة لضمان عدم انضغاط الجدول)
+const ROWS_PER_PAGE = 22; 
 
 /**
  * المحرك الأساسي للطباعة والمشاركة
@@ -144,14 +144,20 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
       ${!isWebPrint ? '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"></head><body>' : ''}
       <div class="report-container">
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
             
             * { box-sizing: border-box; }
-            body { margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body { 
+                margin: 0; padding: 0; 
+                font-family: 'Tajawal', sans-serif; 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
+                background-color: white;
+            }
             
             @page {
                 size: A4;
-                margin: 0; /* نتحكم بالهوامش داخلياً */
+                margin: 0;
             }
 
             .report-container { 
@@ -161,70 +167,122 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
                 color: black;
             }
 
-            /* تصميم الصفحة الواحدة */
+            /* تصميم الصفحة */
             .print-page {
                 width: 210mm;
-                height: 297mm;
-                /* هامش 2سم (20mm) من كل الجهات */
-                padding: 20mm; 
+                min-height: 297mm;
+                padding: 15mm 15mm; /* هوامش مريحة */
                 position: relative;
-                overflow: hidden;
                 display: flex;
                 flex-direction: column;
-                justify-content: flex-start;
                 page-break-after: always;
             }
             .print-page:last-child {
                 page-break-after: auto;
             }
 
-            .print-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 10px; }
-            .print-title { font-size: 18px; font-weight: 800; margin: 0; }
-            .print-subtitle { font-size: 13px; color: #333; margin-top: 2px; font-weight: bold; }
+            /* الترويسة */
+            .print-header { 
+                text-align: center; 
+                border-bottom: 2px solid #000; 
+                padding-bottom: 15px; 
+                margin-bottom: 25px; 
+            }
+            .print-title { font-size: 24px; font-weight: 800; margin: 0 0 5px 0; }
+            .print-subtitle { font-size: 16px; color: #333; font-weight: bold; margin-bottom: 5px; }
             
             .print-meta { 
                 display: flex; 
                 justify-content: space-between; 
-                margin-top: 5px; 
+                margin-top: 15px; 
                 font-weight: bold; 
-                font-size: 11px; 
-                border: 1px solid #000; 
-                padding: 4px; 
-                border-radius: 4px; 
-                background-color: #f9f9f9;
+                font-size: 14px; 
+                border: 1px solid #333; 
+                padding: 8px 20px; 
+                border-radius: 6px; 
+                background-color: #fcfcfc;
             }
             
-            table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px; }
-            th, td { border: 1px solid #000; padding: 2px 2px; text-align: center; height: 1.6em; } /* تقليل ارتفاع الصف ليناسب 30 طالب */
-            th { background-color: #e5e7eb !important; font-weight: 800; color: #000; }
+            /* الجدول - تصميم احترافي */
+            table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                margin-top: 20px; 
+                font-size: 15px; 
+                border: 1px solid #000;
+            }
             
-            /* إزالة الخلفية الحمراء */
-            .status-absent { background-color: transparent !important; }
-            .status-truant { background-color: transparent !important; }
+            /* رأس الجدول */
+            th { 
+                background-color: #ffe4e6 !important; /* لون خلفية خفيف ومميز للرأس */
+                color: #000; 
+                font-weight: 800; 
+                padding: 12px 10px; 
+                border: 1px solid #000; 
+                text-align: center;
+                height: 45px; /* ارتفاع جيد للرأس */
+            }
+
+            /* خلايا الجدول */
+            td { 
+                border: 1px solid #000; 
+                padding: 6px 10px; /* هامش داخلي مريح */
+                text-align: center; 
+                height: 38px; /* ارتفاع ثابت للصف لمنع التكدس */
+                vertical-align: middle;
+            }
+
+            /* تلوين الصفوف الفردية والزوجية لسهولة القراءة */
+            tr:nth-child(even) {
+                background-color: #fafafa;
+            }
             
+            /* نصوص الأعمدة */
+            td.col-name {
+                text-align: right;
+                padding-right: 15px;
+                font-weight: 700;
+                font-size: 15px;
+            }
+
+            .status-text { font-weight: bold; }
+            
+            /* التذييل والتواقيع */
             .footer-sig { 
-                position: absolute; 
-                bottom: 20mm; /* حسب الهامش السفلي 2سم */
-                left: 20mm; 
-                right: 20mm; 
+                margin-top: auto; 
+                padding-top: 30px;
                 display: flex; 
                 justify-content: space-between; 
+                margin-bottom: 30px;
             }
-            .footer-sig div { text-align: center; font-weight: bold; font-size: 13px; }
+            .footer-sig div { 
+                text-align: center; 
+                font-weight: bold; 
+                font-size: 16px; 
+                width: 250px;
+            }
+            .footer-sig div span {
+                display: block;
+                margin-top: 40px;
+                font-weight: normal;
+                color: #aaa;
+            }
             
             .page-number {
+                text-align: center;
+                font-size: 12px;
+                color: #555;
                 position: absolute;
                 bottom: 10mm;
                 left: 0;
                 right: 0;
-                text-align: center;
-                font-size: 10px;
-                color: #666;
             }
 
             @media print {
                 .report-container { width: 100%; }
                 .print-page { height: auto; min-height: 297mm; }
+                th { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact; }
+                tr:nth-child(even) { background-color: #f9fafb !important; -webkit-print-color-adjust: exact; }
             }
         </style>
         ${bodyContent}
@@ -233,7 +291,6 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
 `;
 
 // --- دوال مساعدة ---
-// دالة تقسيم المصفوفة إلى أجزاء (Pagination Logic)
 const chunkArray = <T>(array: T[], size: number): T[][] => {
     const chunked: T[][] = [];
     for (let i = 0; i < array.length; i += size) {
@@ -244,12 +301,11 @@ const chunkArray = <T>(array: T[], size: number): T[][] => {
 
 // --- دوال بناء المحتوى HTML ---
 
-// 1. دالة بناء HTML لصف واحد (تستخدم للكشوفات اليومية)
+// 1. دالة بناء HTML لصف واحد
 const generateSingleClassHTML = (
     schoolName: string, gradeName: string, className: string, date: string,
     allStudents: Student[], attendanceData: Record<string, AttendanceStatus>
 ) => {
-    // نقسم الطلاب إلى صفحات
     const studentChunks = chunkArray(allStudents, ROWS_PER_PAGE);
     
     return studentChunks.map((chunk, pageIndex) => {
@@ -257,30 +313,44 @@ const generateSingleClassHTML = (
             const globalIndex = (pageIndex * ROWS_PER_PAGE) + index + 1;
             const status = attendanceData[student.id] || AttendanceStatus.PRESENT;
             let statusText = 'حاضر';
-            let rowClass = '';
             
-            if (status === AttendanceStatus.ABSENT) { statusText = 'غائب'; rowClass = 'status-absent'; } 
-            else if (status === AttendanceStatus.TRUANT) { statusText = 'تسرب من الحصة'; rowClass = 'status-truant'; } 
-            else if (status === AttendanceStatus.ESCAPE) { statusText = 'تسرب من المدرسة'; rowClass = 'status-truant'; }
+            if (status === AttendanceStatus.ABSENT) { statusText = 'غائب'; } 
+            else if (status === AttendanceStatus.TRUANT) { statusText = 'تسرب حصة'; } 
+            else if (status === AttendanceStatus.ESCAPE) { statusText = 'تسرب مدرسة'; }
             
-            return `<tr class="${rowClass}"><td>${globalIndex}</td><td style="text-align: right; font-weight: bold;">${student.name}</td><td>${statusText}</td><td></td></tr>`;
+            return `
+            <tr>
+                <td style="font-weight: bold;">${globalIndex}</td>
+                <td class="col-name">${student.name}</td>
+                <td class="status-text">${statusText}</td>
+                <td></td>
+            </tr>`;
         }).join('');
 
-        // تكرار الهيكل لكل صفحة
         return `
             <div class="print-page">
                 <div class="print-header">
                     <h1 class="print-title">${schoolName}</h1>
                     <div class="print-subtitle">نظام المتابعة اليومية</div>
-                    <div class="print-meta"><span>التاريخ: ${date}</span><span>الصف: ${gradeName}</span><span>الفصل: ${className}</span></div>
+                    <div class="print-meta">
+                        <span>التاريخ: ${date}</span>
+                        <span>الصف: ${gradeName}</span>
+                        <span>الفصل: ${className}</span>
+                    </div>
                 </div>
                 
                 <table>
+                    <colgroup>
+                        <col style="width: 8%;">
+                        <col style="width: 52%;">
+                        <col style="width: 15%;">
+                        <col style="width: 25%;">
+                    </colgroup>
                     <thead>
                         <tr>
-                            <th width="50">#</th>
+                            <th>#</th>
                             <th>اسم الطالب</th>
-                            <th width="120">الحالة</th>
+                            <th>الحالة</th>
                             <th>ملاحظات</th>
                         </tr>
                     </thead>
@@ -288,8 +358,8 @@ const generateSingleClassHTML = (
                 </table>
 
                 <div class="footer-sig">
-                    <div>توقيع المعلم</div>
-                    <div>ختم الإدارة</div>
+                    <div>توقيع المعلم<span>.........................</span></div>
+                    <div>ختم الإدارة<span>.........................</span></div>
                 </div>
                 
                 <div class="page-number">صفحة ${pageIndex + 1} من ${studentChunks.length}</div>
@@ -304,7 +374,6 @@ export const generateDailyAbsenceReportHTML = (
     date: string,
     allAbsentStudents: any[]
 ) => {
-    // تحويل التاريخ لإضافة اسم اليوم
     const dateObj = new Date(date);
     const dateWithDay = dateObj.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'numeric', day: 'numeric' });
     
@@ -314,17 +383,17 @@ export const generateDailyAbsenceReportHTML = (
         const rows = chunk.map((student, index) => {
             const globalIndex = (pageIndex * ROWS_PER_PAGE) + index + 1;
             let statusText = 'غائب';
-            let rowClass = 'status-absent';
             
-            if (student.status === AttendanceStatus.TRUANT) { statusText = 'تسرب حصة'; rowClass = 'status-truant'; } 
-            else if (student.status === AttendanceStatus.ESCAPE) { statusText = 'تسرب مدرسة'; rowClass = 'status-truant'; }
+            if (student.status === AttendanceStatus.TRUANT) { statusText = 'تسرب حصة'; } 
+            else if (student.status === AttendanceStatus.ESCAPE) { statusText = 'تسرب مدرسة'; }
             
-            return `<tr class="${rowClass}">
-                <td>${globalIndex}</td>
-                <td style="text-align: right; font-weight: bold;">${student.name}</td>
-                <td>${student.gradeName} / ${student.className}</td>
-                <td>${statusText}</td>
-                <td>${student.parentPhone}</td>
+            return `
+            <tr>
+                <td style="font-weight:bold;">${globalIndex}</td>
+                <td class="col-name">${student.name}</td>
+                <td style="font-weight:bold;">${student.gradeName} / ${student.className}</td>
+                <td class="status-text">${statusText}</td>
+                <td style="direction: ltr; text-align:center;">${student.parentPhone}</td>
             </tr>`;
         }).join('');
 
@@ -333,12 +402,22 @@ export const generateDailyAbsenceReportHTML = (
                 <div class="print-header">
                     <h1 class="print-title">${schoolName}</h1>
                     <div class="print-subtitle">تقرير الغياب والتسرب اليومي</div>
-                    <div class="print-meta"><span>التاريخ: ${dateWithDay}</span><span>الإجمالي: ${allAbsentStudents.length}</span></div>
+                    <div class="print-meta">
+                        <span>التاريخ: ${dateWithDay}</span>
+                        <span>الإجمالي: ${allAbsentStudents.length} طالب</span>
+                    </div>
                 </div>
                 <table>
+                    <colgroup>
+                        <col style="width: 8%;">
+                        <col style="width: 42%;">
+                        <col style="width: 20%;">
+                        <col style="width: 15%;">
+                        <col style="width: 15%;">
+                    </colgroup>
                     <thead>
                         <tr>
-                            <th width="40">#</th>
+                            <th>#</th>
                             <th>اسم الطالب</th>
                             <th>الصف / الشعبة</th>
                             <th>الحالة</th>
@@ -348,8 +427,8 @@ export const generateDailyAbsenceReportHTML = (
                     <tbody>${rows}</tbody>
                 </table>
                 <div class="footer-sig">
-                    <div>مسؤول السجل</div>
-                    <div>مدير المدرسة</div>
+                    <div>مسؤول السجل<span>.........................</span></div>
+                    <div>مدير المدرسة<span>.........................</span></div>
                 </div>
                 <div class="page-number">صفحة ${pageIndex + 1} من ${studentChunks.length}</div>
             </div>
@@ -357,7 +436,8 @@ export const generateDailyAbsenceReportHTML = (
     }).join('');
 };
 
-// 3. واجهة طباعة كشف الحضور (لصف واحد)
+// ... الدوال الأخرى (بدون تغيير كبير في المنطق، فقط تستفيد من الستايل الجديد) ...
+
 export const generateAttendanceSheetHTML = (
   schoolName: string, gradeName: string, className: string, date: string,
   students: Student[], attendanceData: Record<string, AttendanceStatus>
@@ -365,19 +445,16 @@ export const generateAttendanceSheetHTML = (
     return generateSingleClassHTML(schoolName, gradeName, className, date, students, attendanceData);
 };
 
-// 4. واجهة طباعة تقرير شامل (لجميع الفصول)
 export const generateGradeDailyReportHTML = (
     schoolName: string, gradeName: string, date: string,
     classesData: { className: string, students: Student[] }[],
     attendanceData: Record<string, AttendanceStatus>
 ) => {
-    // تكرار العملية لكل فصل دراسي
     return classesData.map((cls) => {
         return generateSingleClassHTML(schoolName, gradeName, cls.className, date, cls.students, attendanceData);
     }).join('');
 };
 
-// 5. تقرير إحصائي للفصل (أعداد الغياب لكل طالب خلال فترة)
 export const generateClassPeriodReportHTML = (
   schoolName: string, gradeName: string, className: string, startDate: string, endDate: string, stats: StudentPeriodStats[]
 ) => {
@@ -388,57 +465,94 @@ export const generateClassPeriodReportHTML = (
       const rows = chunk.map((stat, index) => {
         const globalIndex = (pageIndex * ROWS_PER_PAGE) + index + 1;
         const totalViolations = stat.absentCount + stat.truantCount + stat.escapeCount;
-        const rowClass = totalViolations > 0 ? '' : 'text-gray-400';
-        return `<tr class="${rowClass}"><td>${globalIndex}</td><td style="text-align: right; font-weight: bold;">${stat.student.name}</td><td>${stat.absentCount}</td><td>${stat.truantCount}</td><td>${stat.escapeCount}</td><td style="font-weight: bold;">${totalViolations}</td></tr>`;
+        
+        return `<tr>
+            <td style="font-weight:bold;">${globalIndex}</td>
+            <td class="col-name">${stat.student.name}</td>
+            <td>${stat.absentCount}</td>
+            <td>${stat.truantCount}</td>
+            <td>${stat.escapeCount}</td>
+            <td style="font-weight: bold;">${totalViolations}</td>
+        </tr>`;
       }).join('');
 
       return `
         <div class="print-page">
             <div class="print-header">
-            <h1 class="print-title">${schoolName}</h1>
-            <div class="print-subtitle">تقرير إحصائي للفصل</div>
-            <div class="print-meta"><span>الفترة: ${startDate} إلى ${endDate}</span><span>الصف: ${gradeName} / ${className}</span></div>
+                <h1 class="print-title">${schoolName}</h1>
+                <div class="print-subtitle">تقرير إحصائي للفصل</div>
+                <div class="print-meta">
+                    <span>الفترة: ${startDate} إلى ${endDate}</span>
+                    <span>الصف: ${gradeName} / ${className}</span>
+                </div>
             </div>
-            <table><thead><tr><th width="40">#</th><th>اسم الطالب</th><th>غياب</th><th>تسرب حصة</th><th>تسرب مدرسة</th><th>الإجمالي</th></tr></thead><tbody>${rows}</tbody></table>
-            <div class="footer-sig"><div>الأخصائي الاجتماعي</div><div>مدير المدرسة</div></div>
+            <table>
+                <colgroup>
+                    <col style="width: 8%;">
+                    <col style="width: 42%;">
+                    <col style="width: 12%;">
+                    <col style="width: 12%;">
+                    <col style="width: 12%;">
+                    <col style="width: 14%;">
+                </colgroup>
+                <thead><tr><th>#</th><th>اسم الطالب</th><th>غياب</th><th>تسرب حصة</th><th>تسرب مدرسة</th><th>الإجمالي</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <div class="footer-sig"><div>الأخصائي الاجتماعي<span>.........................</span></div><div>مدير المدرسة<span>.........................</span></div></div>
             <div class="page-number">صفحة ${pageIndex + 1} من ${statChunks.length}</div>
         </div>
       `;
   }).join('');
 };
 
-// 6. تقرير حالة طالب (سجل الطالب)
 export const generateStudentReportHTML = (
   schoolName: string, studentName: string, gradeName: string, className: string, records: AttendanceRecord[], periodText?: string
 ) => {
-  const STUDENT_ROWS = 15; // زيادة عدد الصفوف للطالب أيضا
+  const STUDENT_ROWS = 18; // عدد صفوف أقل للطالب لوجود مساحات للتوقيع
   const recordChunks = records.length > 0 ? chunkArray(records, STUDENT_ROWS) : [[]];
 
   return recordChunks.map((chunk, pageIndex) => {
       const recordsRows = chunk.length === 0 
-      ? `<tr><td colspan="4">لا توجد سجلات غياب أو تسرب لهذا الطالب خلال الفترة المحددة.</td></tr>`
+      ? `<tr><td colspan="4" style="padding: 20px;">لا توجد سجلات غياب أو تسرب لهذا الطالب خلال الفترة المحددة.</td></tr>`
       : chunk.map((record, index) => {
         const globalIndex = (pageIndex * STUDENT_ROWS) + index + 1;
-        let statusText = '', rowClass = '', details = '';
-        if (record.status === AttendanceStatus.ABSENT) { statusText = 'غائب'; rowClass = 'status-absent'; } 
-        else if (record.status === AttendanceStatus.TRUANT) { statusText = 'تسرب من الحصة'; rowClass = 'status-truant'; if (record.period) details = `حصة: ${record.period}`; } 
-        else if (record.status === AttendanceStatus.ESCAPE) { statusText = 'تسرب من المدرسة'; rowClass = 'status-truant'; if (record.note) details = `ملاحظة: ${record.note}`; }
+        let statusText = '', details = '';
+        if (record.status === AttendanceStatus.ABSENT) { statusText = 'غائب'; } 
+        else if (record.status === AttendanceStatus.TRUANT) { statusText = 'تسرب من الحصة'; if (record.period) details = `حصة: ${record.period}`; } 
+        else if (record.status === AttendanceStatus.ESCAPE) { statusText = 'تسرب من المدرسة'; if (record.note) details = `ملاحظة: ${record.note}`; }
         
         const dateWithDay = new Date(record.date).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'numeric', day: 'numeric' });
         
-        return `<tr class="${rowClass}"><td>${globalIndex}</td><td>${dateWithDay}</td><td>${statusText}</td><td style="font-size: 10px;">${details}</td></tr>`;
+        return `<tr>
+            <td style="font-weight:bold;">${globalIndex}</td>
+            <td style="font-weight:bold;">${dateWithDay}</td>
+            <td class="status-text">${statusText}</td>
+            <td style="font-size: 13px;">${details}</td>
+        </tr>`;
       }).join('');
 
       return `
         <div class="print-page">
             <div class="print-header">
-            <h1 class="print-title">${schoolName}</h1>
-            <div class="print-subtitle">تقرير حالة طالب</div>
-            <div class="print-meta"><span>الطالب: ${studentName}</span><span>الصف: ${gradeName} / ${className}</span></div>
+                <h1 class="print-title">${schoolName}</h1>
+                <div class="print-subtitle">تقرير حالة طالب</div>
+                <div class="print-meta">
+                    <span>الطالب: ${studentName}</span>
+                    <span>الصف: ${gradeName} / ${className}</span>
+                </div>
             </div>
-            ${pageIndex === 0 ? `<div style="margin: 10px 0; font-weight:bold;">${periodText}</div>` : ''}
-            <table><thead><tr><th width="40">#</th><th width="150">التاريخ</th><th>الحالة</th><th>تفاصيل</th></tr></thead><tbody>${recordsRows}</tbody></table>
-            <div class="footer-sig" style="bottom: 20mm;"><div>توقيع ولي الأمر بالعلم</div><div>الأخصائي الاجتماعي</div></div>
+            ${pageIndex === 0 ? `<div style="margin: 15px 0; font-weight:bold; text-align:center; background:#eee; padding:5px;">${periodText}</div>` : ''}
+            <table>
+                 <colgroup>
+                    <col style="width: 8%;">
+                    <col style="width: 30%;">
+                    <col style="width: 25%;">
+                    <col style="width: 37%;">
+                </colgroup>
+                <thead><tr><th>#</th><th>التاريخ</th><th>الحالة</th><th>تفاصيل</th></tr></thead>
+                <tbody>${recordsRows}</tbody>
+            </table>
+            <div class="footer-sig"><div>توقيع ولي الأمر بالعلم<span>.........................</span></div><div>الأخصائي الاجتماعي<span>.........................</span></div></div>
             <div class="page-number">صفحة ${pageIndex + 1} من ${recordChunks.length}</div>
         </div>
       `;
@@ -459,12 +573,15 @@ export const printAttendanceSheet = (
     let html = '';
     let fName = '';
     
+    // تنسيق التاريخ لاسم الملف
+    const safeDate = date.replace(/-/g, '_');
+
     if (isFullGrade && classesData.length > 0) {
         html = generateGradeDailyReportHTML(schoolName, gradeName, date, classesData, attendanceData);
-        fName = `تقرير_شامل_${gradeName}_${date}`;
+        fName = `تقرير_شامل_${gradeName}_${safeDate}`;
     } else {
         html = generateAttendanceSheetHTML(schoolName, gradeName, className, date, students, attendanceData);
-        fName = `كشف_غياب_${className}_${date}`;
+        fName = `كشف_غياب_${className}_${safeDate}`;
     }
     
     executeOutputStrategy(html, fName);
