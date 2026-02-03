@@ -11,8 +11,8 @@ import jsPDF from 'jspdf';
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297; 
 const A4_WIDTH_PX = 794; 
-// عدد الصفوف في الصفحة الواحدة (تم ضبطه لضمان ظهور الترويسة والختم في كل صفحة)
-const ROWS_PER_PAGE = 13; 
+// زيادة العدد إلى 25 صفاً في الصفحة الواحدة لتوفير الورق
+const ROWS_PER_PAGE = 25; 
 
 /**
  * المحرك الأساسي للطباعة والمشاركة
@@ -160,7 +160,7 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
             .print-page {
                 width: 210mm;
                 height: 296mm; /* A4 height approx - 1mm margin */
-                padding: 15mm 15mm;
+                padding: 10mm 10mm; /* تقليل الهوامش قليلاً لزيادة المساحة */
                 position: relative;
                 overflow: hidden;
                 display: flex;
@@ -174,42 +174,42 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
                 page-break-after: auto;
             }
 
-            .print-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
-            .print-title { font-size: 20px; font-weight: 800; margin: 0; }
-            .print-subtitle { font-size: 14px; color: #333; margin-top: 5px; font-weight: bold; }
+            .print-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 10px; }
+            .print-title { font-size: 18px; font-weight: 800; margin: 0; }
+            .print-subtitle { font-size: 13px; color: #333; margin-top: 2px; font-weight: bold; }
             
             .print-meta { 
                 display: flex; 
                 justify-content: space-between; 
-                margin-top: 10px; 
+                margin-top: 5px; 
                 font-weight: bold; 
-                font-size: 12px; 
+                font-size: 11px; 
                 border: 1px solid #000; 
-                padding: 6px; 
+                padding: 4px; 
                 border-radius: 4px; 
                 background-color: #f9f9f9;
             }
             
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-            th, td { border: 1px solid #000; padding: 6px 4px; text-align: center; }
-            th { background-color: #e5e7eb !important; font-weight: 800; color: #000; height: 35px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px; }
+            th, td { border: 1px solid #000; padding: 4px 2px; text-align: center; } /* تقليل التباعد الداخلي */
+            th { background-color: #e5e7eb !important; font-weight: 800; color: #000; height: 30px; }
             
             .status-absent { background-color: #ffe4e6 !important; }
             .status-truant { background-color: #fef3c7 !important; }
             
             .footer-sig { 
                 position: absolute; 
-                bottom: 20mm; 
+                bottom: 15mm; 
                 left: 15mm; 
                 right: 15mm; 
                 display: flex; 
                 justify-content: space-between; 
             }
-            .footer-sig div { text-align: center; font-weight: bold; font-size: 14px; }
+            .footer-sig div { text-align: center; font-weight: bold; font-size: 13px; }
             
             .page-number {
                 position: absolute;
-                bottom: 8mm;
+                bottom: 5mm;
                 left: 0;
                 right: 0;
                 text-align: center;
