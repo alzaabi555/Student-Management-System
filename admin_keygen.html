@@ -1,0 +1,99 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مولد مفاتيح مدرستي (للمطور فقط)</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex items-center justify-center p-4">
+    <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700 relative overflow-hidden">
+        
+        <!-- Background Decoration -->
+        <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+
+        <h1 class="text-2xl font-bold mb-2 text-center text-white flex items-center justify-center gap-2">
+            🔐 لوحة تحكم المطور
+        </h1>
+        <p class="text-center text-slate-400 text-sm mb-8">مولد مفاتيح التفعيل لنظام مدرستي</p>
+        
+        <div class="space-y-6">
+            <div>
+                <label class="block text-xs font-bold mb-2 text-blue-400 uppercase tracking-wider">رقم جهاز العميل (Device ID)</label>
+                <input type="text" id="deviceIdInput" class="w-full p-4 rounded-xl bg-slate-900 border border-slate-600 focus:border-blue-500 focus:outline-none text-center font-mono tracking-wider text-lg shadow-inner placeholder-slate-700 transition-all" placeholder="DEV-XXXX-XXXX">
+            </div>
+
+            <button onclick="generateKey()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-900/50 transform active:scale-95">
+                توليد كود التفعيل
+            </button>
+
+            <!-- Result Area -->
+            <div id="resultArea" class="hidden opacity-0 transition-opacity duration-500">
+                <div class="mt-6 bg-slate-900 p-6 rounded-xl border border-green-900/50 text-center relative group cursor-pointer" onclick="copyKey()">
+                    <p class="text-[10px] text-gray-500 mb-2 uppercase tracking-widest font-bold">كود التفعيل (اضغط للنسخ)</p>
+                    <div id="outputKey" class="text-3xl font-mono font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600 tracking-widest select-all"></div>
+                    
+                    <!-- Copy Tooltip -->
+                    <div id="copyMsg" class="absolute inset-0 bg-green-900/90 flex items-center justify-center text-white font-bold rounded-xl opacity-0 transition-opacity duration-200 pointer-events-none">
+                        تم النسخ بنجاح!
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center border-t border-slate-700 pt-4">
+            <p class="text-[10px] text-slate-600">تنبيه: هذا الملف خاص بالمطور فقط. لا تشاركه مع العملاء.</p>
+        </div>
+    </div>
+
+    <script>
+        // --- هام جداً: هذا المفتاح يجب أن يطابق الموجود داخل التطبيق (services/licenseService.ts) تماماً ---
+        const SECRET_SALT = 'MADRASATI_SECURE_2024_V2';
+
+        function generateKey() {
+            const deviceId = document.getElementById('deviceIdInput').value.trim();
+            const resultArea = document.getElementById('resultArea');
+            
+            if (!deviceId) {
+                alert('الرجاء إدخال رقم الجهاز الذي أرسله العميل');
+                return;
+            }
+
+            // نفس خوارزمية التشفير الموجودة في التطبيق
+            const text = deviceId + SECRET_SALT;
+            let hash = 0;
+            
+            for (let i = 0; i < text.length; i++) {
+                const char = text.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            
+            const rawCode = Math.abs(hash).toString(16).toUpperCase().padStart(12, 'X');
+            const finalKey = `${rawCode.substring(0, 4)}-${rawCode.substring(4, 8)}-${rawCode.substring(8, 12)}`;
+
+            document.getElementById('outputKey').innerText = finalKey;
+            
+            resultArea.classList.remove('hidden');
+            // Small delay to allow display change then animate opacity
+            setTimeout(() => {
+                resultArea.classList.remove('opacity-0');
+            }, 50);
+        }
+
+        function copyKey() {
+            const key = document.getElementById('outputKey').innerText;
+            navigator.clipboard.writeText(key);
+            
+            const msg = document.getElementById('copyMsg');
+            msg.style.opacity = '1';
+            setTimeout(() => msg.style.opacity = '0', 1500);
+        }
+    </script>
+</body>
+</html>

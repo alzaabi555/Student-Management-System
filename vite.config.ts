@@ -1,3 +1,4 @@
+
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -18,12 +19,12 @@ export default defineConfig({
         orientation: "any",
         icons: [
           {
-            src: "assets/icon.png",
+            src: "assets/icon.png", // Changed to relative path
             sizes: "192x192",
             type: "image/png"
           },
           {
-            src: "assets/icon.png",
+            src: "assets/icon.png", // Changed to relative path
             sizes: "512x512",
             type: "image/png"
           }
