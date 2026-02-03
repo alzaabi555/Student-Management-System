@@ -6,15 +6,13 @@ import { Capacitor } from '@capacitor/core';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
-// --- الإعدادات ---
-const A4_WIDTH_MM = 210;
-const A4_HEIGHT_MM = 297; 
-const A4_WIDTH_PX = 794; 
-const ROWS_PER_PAGE = 30; 
+// --- إعدادات الورقة A4 (دقة ومقاسات ثابتة) ---
+const A4_WIDTH_PX = 794;  // عرض A4 بالبكسل (96 DPI)
+const A4_HEIGHT_PX = 1123; // ارتفاع A4 بالبكسل
+const ROWS_PER_PAGE = 30; // عدد الطلاب في الصفحة
 
 // --- دوال المساعدة ---
 
-// دالة تصدير HTML إلى PDF (مطلوبة في Reports.tsx)
 export const shareHTMLAsPDF = async (contentBody: string, fileName: string) => {
     await executeOutputStrategy(contentBody, fileName);
 };
@@ -27,49 +25,57 @@ const executeOutputStrategy = async (contentHTML: string, fileName: string) => {
     }
 };
 
+/**
+ * الاستراتيجية الجديدة: التقاط كل صفحة بشكل منفصل
+ * هذا يمنع انضغاط الصور أو تداخل الصفحات
+ */
 const generateAndSharePDF = async (contentHTML: string, fileName: string) => {
+    // 1. إنشاء حاوية مخفية تحتوي على الصفحات
     const container = document.createElement('div');
     container.style.position = 'fixed';
     container.style.top = '0';
     container.style.left = '-9999px';
-    container.style.width = '210mm'; 
+    // نعطيها عرض A4 ثابت لمنع التمدد أو الانكماش
+    container.style.width = `${A4_WIDTH_PX}px`; 
     container.style.backgroundColor = '#ffffff';
     container.style.zIndex = '-1000';
     
+    // وضع المحتوى داخل الحاوية
     container.innerHTML = getReportHTMLStructure(contentHTML, false);
     document.body.appendChild(container);
 
     try {
+        // انتظار تحميل الخطوط
         await new Promise(resolve => setTimeout(resolve, 800));
 
-        const canvas = await html2canvas(container.querySelector('.report-container') as HTMLElement, {
-            scale: 2, 
-            useCORS: true,
-            logging: false,
-            width: A4_WIDTH_PX,
-            windowWidth: A4_WIDTH_PX,
-            backgroundColor: '#ffffff'
-        });
-
-        const imgData = canvas.toDataURL('image/jpeg', 0.9);
+        // 2. تحديد جميع الصفحات التي تم إنشاؤها
+        const pages = container.querySelectorAll('.print-page');
         const pdf = new jsPDF('p', 'mm', 'a4');
-        const imgWidth = A4_WIDTH_MM;
-        const pageHeight = A4_HEIGHT_MM;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        
-        let heightLeft = imgHeight;
-        let position = 0;
+        const pdfWidth = 210; // mm
+        const pdfHeight = 297; // mm
 
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        // 3. التقاط كل صفحة كصورة منفصلة وإضافتها للـ PDF
+        for (let i = 0; i < pages.length; i++) {
+            const pageElement = pages[i] as HTMLElement;
+            
+            const canvas = await html2canvas(pageElement, {
+                scale: 2, // دقة عالية
+                useCORS: true,
+                logging: false,
+                width: A4_WIDTH_PX,
+                height: A4_HEIGHT_PX,
+                windowWidth: A4_WIDTH_PX,
+                windowHeight: A4_HEIGHT_PX,
+                backgroundColor: '#ffffff'
+            });
 
-        while (heightLeft > 0) {
-            position -= pageHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            
+            if (i > 0) pdf.addPage(); // إضافة صفحة جديدة في الـ PDF (عدا الأولى)
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
         }
 
+        // 4. الحفظ والمشاركة
         const base64Data = pdf.output('datauristring').split(',')[1];
         const safeFileName = `${fileName.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
 
@@ -91,7 +97,7 @@ const generateAndSharePDF = async (contentHTML: string, fileName: string) => {
 
     } catch (error) {
         console.error("PDF Error:", error);
-        alert("حدث خطأ أثناء الطباعة");
+        alert("حدث خطأ أثناء إنشاء ملف الطباعة");
     } finally {
         if (document.body.contains(container)) document.body.removeChild(container);
     }
@@ -110,76 +116,98 @@ const printDirectlyOnWeb = async (contentBody: string) => {
     printMount.innerHTML = '';
 };
 
-// --- CSS وتنسيق الجدول ---
+// --- CSS وتنسيق الجدول (A4 Pixel Perfect) ---
 const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false) => `
       ${!isWebPrint ? '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"></head><body>' : ''}
-      <div class="report-container">
+      <div class="report-wrapper">
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
             * { box-sizing: border-box; }
             body { margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; background: white; color: black; }
             
-            .report-container { width: 210mm; margin: 0 auto; }
-
+            /* تنسيق الصفحة الواحدة لتكون A4 بالضبط */
             .print-page {
-                width: 210mm;
-                min-height: 297mm;
-                padding: 15mm;
+                width: 794px;  /* A4 width at 96dpi */
+                height: 1123px; /* A4 height at 96dpi */
+                padding: 40px;
+                position: relative;
+                background: white;
+                overflow: hidden; /* ضمان عدم خروج المحتوى */
                 page-break-after: always;
                 display: flex;
                 flex-direction: column;
+                border-bottom: 1px dashed #ccc; /* فقط للمعاينة */
             }
-            .print-page:last-child { page-break-after: auto; }
 
             .simple-header {
                 text-align: center;
-                border-bottom: 2px solid #000;
-                padding-bottom: 10px;
-                margin-bottom: 15px;
+                border-bottom: 3px double #000;
+                padding-bottom: 15px;
+                margin-bottom: 20px;
             }
-            .school-name { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
-            .report-title { font-size: 22px; font-weight: 800; margin: 5px 0; }
+            .school-name { font-size: 20px; font-weight: bold; margin-bottom: 8px; }
+            .report-title { font-size: 26px; font-weight: 800; margin: 10px 0; color: #000; }
+            
             .meta-info { 
                 display: flex; 
                 justify-content: space-between; 
                 font-weight: bold; 
-                font-size: 14px; 
-                margin-top: 10px;
-                background: #f1f1f1;
-                padding: 5px 10px;
-                border: 1px solid #ccc;
+                font-size: 16px; 
+                margin-top: 15px;
+                background: #f8f9fa;
+                padding: 8px 15px;
+                border: 1px solid #000;
+                border-radius: 4px;
             }
 
+            /* الجدول - إصلاح المسافات */
             table { 
                 width: 100%; 
                 border-collapse: collapse; 
-                font-size: 12px;
+                font-size: 14px; /* حجم خط مريح */
                 border: 1px solid #000;
+                margin-top: 10px;
             }
             
             th { 
-                background-color: #ddd !important; 
+                background-color: #e9ecef !important; 
                 font-weight: 800; 
-                padding: 8px; 
+                padding: 10px 5px; 
                 border: 1px solid #000; 
                 text-align: center;
+                color: #000;
             }
 
             td { 
                 border: 1px solid #000; 
-                padding: 4px; 
+                padding: 6px 5px; 
                 text-align: center; 
-                height: 25px;
+                height: 28px; /* ارتفاع ثابت للصف */
+                vertical-align: middle;
             }
 
-            tr:nth-child(even) { background-color: #f9f9f9; }
+            tr:nth-child(even) { background-color: #ffffff; }
+            tr:nth-child(odd) { background-color: #fcfcfc; }
 
             .footer-page {
-                margin-top: auto;
+                position: absolute;
+                bottom: 30px;
+                left: 0; 
+                right: 0;
                 text-align: center;
-                font-size: 10px;
+                font-size: 12px;
                 border-top: 1px solid #eee;
-                padding-top: 5px;
+                padding-top: 10px;
+                width: 100%;
+            }
+            
+            .signatures {
+                margin-top: auto;
+                margin-bottom: 60px;
+                display: flex;
+                justify-content: space-around;
+                font-weight: bold;
+                font-size: 14px;
             }
         </style>
         ${bodyContent}
@@ -195,7 +223,7 @@ const chunkArray = <T>(array: T[], size: number): T[][] => {
 
 // --- المولدات (Generators) ---
 
-// 1. كشف الحضور والغياب (صف واحد)
+// 1. كشف الحضور والغياب
 const generateSingleClassHTML = (
     schoolName: string, gradeName: string, className: string, date: string,
     allStudents: Student[], attendanceData: Record<string, AttendanceStatus>
@@ -206,14 +234,25 @@ const generateSingleClassHTML = (
         const rows = chunk.map((student, index) => {
             const globalIndex = (pageIndex * ROWS_PER_PAGE) + index + 1;
             const status = attendanceData[student.id] || AttendanceStatus.PRESENT;
-            let statusText = status === AttendanceStatus.ABSENT ? 'غائب' : 
-                             status === AttendanceStatus.TRUANT ? 'تسرب' : 
-                             status === AttendanceStatus.ESCAPE ? 'هروب' : 'حاضر';
+            
+            let statusText = 'حاضر';
+            let rowStyle = '';
+
+            if (status === AttendanceStatus.ABSENT) { 
+                statusText = 'غائب'; 
+                rowStyle = 'background-color: #fff1f2 !important; color: #e11d48; font-weight: bold;';
+            } else if (status === AttendanceStatus.TRUANT) { 
+                statusText = 'تسرب'; 
+                rowStyle = 'color: #d97706; font-weight: bold;';
+            } else if (status === AttendanceStatus.ESCAPE) { 
+                statusText = 'هروب';
+                rowStyle = 'color: #b45309; font-weight: bold;';
+            }
             
             return `
-            <tr>
+            <tr style="${rowStyle}">
                 <td>${globalIndex}</td>
-                <td style="text-align: right; padding-right: 5px;">${student.name}</td>
+                <td style="text-align: right; padding-right: 10px;">${student.name}</td>
                 <td>${statusText}</td>
                 <td></td>
             </tr>`;
@@ -245,7 +284,7 @@ const generateSingleClassHTML = (
     }).join('');
 };
 
-// 2. تصدير الدوال المستخدمة في Reports.tsx
+// --- الدوال المصدرة (Exported Functions) ---
 
 export const generateAttendanceSheetHTML = (
     schoolName: string, gradeName: string, className: string, date: string,
@@ -273,14 +312,13 @@ export const generateDailyAbsenceReportHTML = (
         const rows = chunk.map((student, index) => {
             const globalIndex = (pageIndex * ROWS_PER_PAGE) + index + 1;
             let statusText = 'غائب';
-            // استخدام الـ Enum هنا أيضاً لتفادي الأخطاء
             if (student.status === AttendanceStatus.TRUANT) statusText = 'تسرب حصة';
             if (student.status === AttendanceStatus.ESCAPE) statusText = 'تسرب مدرسة';
 
             return `
             <tr>
                 <td>${globalIndex}</td>
-                <td style="text-align: right; padding-right: 5px;">${student.name}</td>
+                <td style="text-align: right; padding-right: 10px;">${student.name}</td>
                 <td>${student.gradeName}/${student.className}</td>
                 <td>${statusText}</td>
                 <td>${student.parentPhone || '-'}</td>
@@ -308,6 +346,12 @@ export const generateDailyAbsenceReportHTML = (
                     <thead><tr><th>م</th><th>اسم الطالب</th><th>الصف</th><th>الحالة</th><th>ولي الأمر</th></tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
+                
+                <div class="signatures">
+                    <div>مسؤول السجل</div>
+                    <div>مدير المدرسة</div>
+                </div>
+
                 <div class="footer-page">صفحة ${pageIndex + 1}</div>
             </div>
         `;
@@ -360,7 +404,6 @@ export const generateStudentReportHTML = (
         const rows = chunk.length === 0 ? 
             `<tr><td colspan="4" style="padding:20px;">لا توجد غيابات مسجلة.</td></tr>` :
             chunk.map((rec, i) => {
-                // ✅ هنا كان الخطأ سابقاً وتم إصلاحه
                 let statusText = 'حاضر';
                 if (rec.status === AttendanceStatus.ABSENT) statusText = 'غائب';
                 else if (rec.status === AttendanceStatus.TRUANT) statusText = 'تسرب';
@@ -431,17 +474,17 @@ export const printSummonLetter = (
   schoolName: string, districtName: string, studentName: string, gradeName: string, className: string, date: string, time: string, reason: string, issueDate: string, assets?: SchoolAssets
 ) => {
       const html = `
-        <div class="print-page" style="border: none;">
-            <div style="border: 2px solid #000; padding: 30px; height: 95%; box-sizing: border-box; position: relative;">
+        <div class="print-page">
+            <div style="border: 2px solid #000; padding: 40px; height: 100%; box-sizing: border-box; position: relative;">
                 <div style="text-align: center; margin-bottom: 30px;">
                     <div style="font-size: 18px; font-weight: bold;">سلطنة عُمان</div>
-                    <div style="font-size: 18px; font-weight: bold;">وزارة التربية والتعليم</div>
+                    <div style="font-size: 18px; font-weight: bold;">وزارة والتعليم</div>
                     <div style="font-size: 16px;">مدرسة ${schoolName}</div>
                 </div>
                 
-                <div style="text-align: center; font-size: 24px; font-weight: bold; text-decoration: underline; margin: 30px 0;">استدعاء ولي أمر</div>
+                <div style="text-align: center; font-size: 26px; font-weight: bold; text-decoration: underline; margin: 50px 0;">استدعاء ولي أمر</div>
 
-                <div style="font-size: 16px; line-height: 2.0; text-align: justify; direction: rtl;">
+                <div style="font-size: 18px; line-height: 2.2; text-align: justify; direction: rtl;">
                     <p><strong>الفاضل ولي أمر الطالب:</strong> ${studentName}</p>
                     <p><strong>الصف:</strong> ${gradeName} / ${className}</p>
                     <br/>
@@ -452,9 +495,9 @@ export const printSummonLetter = (
                     <p>شاكرين لكم حسن تعاونكم لما فيه مصلحة الطالب.</p>
                 </div>
 
-                <div style="margin-top: 60px; display: flex; justify-content: space-between;">
-                    <div style="text-align: center;"><strong>إدارة المدرسة</strong><br/>.........................</div>
-                    <div style="text-align: center;"><strong>ولي الأمر</strong><br/>.........................</div>
+                <div style="margin-top: 80px; display: flex; justify-content: space-between; font-size: 16px;">
+                    <div style="text-align: center;"><strong>إدارة المدرسة</strong><br/><br/>.........................</div>
+                    <div style="text-align: center;"><strong>ولي الأمر</strong><br/><br/>.........................</div>
                 </div>
             </div>
         </div>
