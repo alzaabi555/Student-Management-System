@@ -10,11 +10,11 @@ import jsPDF from 'jspdf';
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297; 
 const A4_WIDTH_PX = 794; 
-const ROWS_PER_PAGE = 30; // 30 طالب كما طلبت
+const ROWS_PER_PAGE = 30; 
 
-/**
- * دالة مساعدة لتصدير أي محتوى HTML إلى PDF (مطلوبة في Reports.tsx)
- */
+// --- دوال المساعدة ---
+
+// دالة تصدير HTML إلى PDF (مطلوبة في Reports.tsx)
 export const shareHTMLAsPDF = async (contentBody: string, fileName: string) => {
     await executeOutputStrategy(contentBody, fileName);
 };
@@ -131,7 +131,6 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
             }
             .print-page:last-child { page-break-after: auto; }
 
-            /* ترويسة بسيطة */
             .simple-header {
                 text-align: center;
                 border-bottom: 2px solid #000;
@@ -151,7 +150,6 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
                 border: 1px solid #ccc;
             }
 
-            /* الجدول */
             table { 
                 width: 100%; 
                 border-collapse: collapse; 
@@ -195,7 +193,7 @@ const chunkArray = <T>(array: T[], size: number): T[][] => {
     return chunked;
 };
 
-// --- المولدات (Generators) - يجب تصديرها لأن Reports.tsx يستخدمها ---
+// --- المولدات (Generators) ---
 
 // 1. كشف الحضور والغياب (صف واحد)
 const generateSingleClassHTML = (
@@ -247,7 +245,8 @@ const generateSingleClassHTML = (
     }).join('');
 };
 
-// ✅ تصدير الدالة: توليد كشف الحضور (يستخدمها Reports.tsx)
+// 2. تصدير الدوال المستخدمة في Reports.tsx
+
 export const generateAttendanceSheetHTML = (
     schoolName: string, gradeName: string, className: string, date: string,
     students: Student[], attendanceData: Record<string, AttendanceStatus>
@@ -255,7 +254,6 @@ export const generateAttendanceSheetHTML = (
     return generateSingleClassHTML(schoolName, gradeName, className, date, students, attendanceData);
 };
 
-// ✅ تصدير الدالة: توليد تقرير شامل لكل الصفوف (يستخدمها Reports.tsx)
 export const generateGradeDailyReportHTML = (
     schoolName: string, gradeName: string, date: string,
     classesData: { className: string, students: Student[] }[],
@@ -266,7 +264,6 @@ export const generateGradeDailyReportHTML = (
     }).join('');
 };
 
-// ✅ تصدير الدالة: تقرير الغياب اليومي (يستخدمها Reports.tsx)
 export const generateDailyAbsenceReportHTML = (
     schoolName: string, date: string, allAbsentStudents: any[]
 ) => {
@@ -276,6 +273,7 @@ export const generateDailyAbsenceReportHTML = (
         const rows = chunk.map((student, index) => {
             const globalIndex = (pageIndex * ROWS_PER_PAGE) + index + 1;
             let statusText = 'غائب';
+            // استخدام الـ Enum هنا أيضاً لتفادي الأخطاء
             if (student.status === AttendanceStatus.TRUANT) statusText = 'تسرب حصة';
             if (student.status === AttendanceStatus.ESCAPE) statusText = 'تسرب مدرسة';
 
@@ -316,7 +314,6 @@ export const generateDailyAbsenceReportHTML = (
     }).join('');
 };
 
-// ✅ تصدير الدالة: تقرير إحصائي للفصل (يستخدمها Reports.tsx)
 export const generateClassPeriodReportHTML = (
   schoolName: string, gradeName: string, className: string, startDate: string, endDate: string, stats: StudentPeriodStats[]
 ) => {
@@ -354,7 +351,6 @@ export const generateClassPeriodReportHTML = (
     }).join('');
 };
 
-// ✅ تصدير الدالة: تقرير طالب فردي (يستخدمها Reports.tsx)
 export const generateStudentReportHTML = (
     schoolName: string, studentName: string, gradeName: string, className: string, records: AttendanceRecord[], periodText?: string
 ) => {
@@ -363,14 +359,22 @@ export const generateStudentReportHTML = (
     return chunks.map((chunk, pageIndex) => {
         const rows = chunk.length === 0 ? 
             `<tr><td colspan="4" style="padding:20px;">لا توجد غيابات مسجلة.</td></tr>` :
-            chunk.map((rec, i) => `
+            chunk.map((rec, i) => {
+                // ✅ هنا كان الخطأ سابقاً وتم إصلاحه
+                let statusText = 'حاضر';
+                if (rec.status === AttendanceStatus.ABSENT) statusText = 'غائب';
+                else if (rec.status === AttendanceStatus.TRUANT) statusText = 'تسرب';
+                else if (rec.status === AttendanceStatus.ESCAPE) statusText = 'هروب';
+
+                return `
                 <tr>
                     <td>${i + 1}</td>
                     <td>${new Date(rec.date).toLocaleDateString('ar-EG')}</td>
-                    <td>${rec.status === 'absent' ? 'غائب' : 'تسرب'}</td>
+                    <td>${statusText}</td>
                     <td>${rec.note || '-'}</td>
                 </tr>
-            `).join('');
+                `;
+            }).join('');
 
         return `
             <div class="print-page">
@@ -423,7 +427,6 @@ export const printStudentReport = (schoolName: string, studentName: string, grad
     executeOutputStrategy(html, `تقرير_الطالب_${studentName}`);
 };
 
-// ✅ إعادة إضافة دالة طباعة خطاب الاستدعاء (Summon Letter) - كانت مفقودة وتسبب الخطأ في SummonPage.tsx
 export const printSummonLetter = (
   schoolName: string, districtName: string, studentName: string, gradeName: string, className: string, date: string, time: string, reason: string, issueDate: string, assets?: SchoolAssets
 ) => {
