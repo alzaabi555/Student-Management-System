@@ -10,7 +10,7 @@ import jsPDF from 'jspdf';
 // هذا يضمن عدم انضغاط الصورة لأننا نحدد الأبعاد بدقة
 const A4_WIDTH_PX = 794;
 const A4_HEIGHT_PX = 1123;
-const ROWS_PER_PAGE = 30; // 30 طالب في الصفحة
+const ROWS_PER_PAGE = 24; // 30 طالب في الصفحة
 
 // --- دوال مساعدة للتاريخ ---
 const formatDateWithDay = (dateString: string) => {
@@ -340,7 +340,7 @@ export const generateDailyAbsenceReportHTML = (
             <div class="print-page">
                 <div class="simple-header">
                     <div class="school-name">${schoolName}</div>
-                    <div class="report-title">تقرير الغياب والتسرب اليومي</div>
+                    <div class="report-title">تقرير الغياب اليومي</div>
                     <div class="meta-info">
                         <span>العدد: ${allAbsentStudents.length}</span>
                         <span>${dateWithDay}</span>
