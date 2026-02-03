@@ -6,12 +6,29 @@ import { Capacitor } from '@capacitor/core';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
-// --- إعدادات الورقة A4 (دقة ومقاسات ثابتة) ---
-const A4_WIDTH_PX = 794;  // عرض A4 بالبكسل (96 DPI)
-const A4_HEIGHT_PX = 1123; // ارتفاع A4 بالبكسل
-const ROWS_PER_PAGE = 30; // عدد الطلاب في الصفحة
+// --- إعدادات الورقة A4 (دقة ومقاسات ثابتة بالبكسل) ---
+// هذا يضمن عدم انضغاط الصورة لأننا نحدد الأبعاد بدقة
+const A4_WIDTH_PX = 794;
+const A4_HEIGHT_PX = 1123;
+const ROWS_PER_PAGE = 30; // 30 طالب في الصفحة
 
-// --- دوال المساعدة ---
+// --- دوال مساعدة للتاريخ ---
+const formatDateWithDay = (dateString: string) => {
+    try {
+        const date = new Date(dateString);
+        // استخراج اسم اليوم والتاريخ بالعربي
+        return date.toLocaleDateString('ar-EG', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'numeric', 
+            day: 'numeric' 
+        });
+    } catch (e) {
+        return dateString;
+    }
+};
+
+// --- المحرك الأساسي ---
 
 export const shareHTMLAsPDF = async (contentBody: string, fileName: string) => {
     await executeOutputStrategy(contentBody, fileName);
@@ -25,36 +42,27 @@ const executeOutputStrategy = async (contentHTML: string, fileName: string) => {
     }
 };
 
-/**
- * الاستراتيجية الجديدة: التقاط كل صفحة بشكل منفصل
- * هذا يمنع انضغاط الصور أو تداخل الصفحات
- */
 const generateAndSharePDF = async (contentHTML: string, fileName: string) => {
-    // 1. إنشاء حاوية مخفية تحتوي على الصفحات
+    // 1. إنشاء حاوية مخفية
     const container = document.createElement('div');
     container.style.position = 'fixed';
     container.style.top = '0';
     container.style.left = '-9999px';
-    // نعطيها عرض A4 ثابت لمنع التمدد أو الانكماش
-    container.style.width = `${A4_WIDTH_PX}px`; 
-    container.style.backgroundColor = '#ffffff';
+    // تحديد العرض والارتفاع بدقة لمنع الانضغاط
+    container.style.width = `${A4_WIDTH_PX}px`;
     container.style.zIndex = '-1000';
     
-    // وضع المحتوى داخل الحاوية
     container.innerHTML = getReportHTMLStructure(contentHTML, false);
     document.body.appendChild(container);
 
     try {
-        // انتظار تحميل الخطوط
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => setTimeout(resolve, 800)); // انتظار الخطوط
 
-        // 2. تحديد جميع الصفحات التي تم إنشاؤها
         const pages = container.querySelectorAll('.print-page');
         const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = 210; // mm
-        const pdfHeight = 297; // mm
+        const pdfWidth = 210; 
+        const pdfHeight = 297; 
 
-        // 3. التقاط كل صفحة كصورة منفصلة وإضافتها للـ PDF
         for (let i = 0; i < pages.length; i++) {
             const pageElement = pages[i] as HTMLElement;
             
@@ -63,19 +71,18 @@ const generateAndSharePDF = async (contentHTML: string, fileName: string) => {
                 useCORS: true,
                 logging: false,
                 width: A4_WIDTH_PX,
-                height: A4_HEIGHT_PX,
+                height: A4_HEIGHT_PX, 
                 windowWidth: A4_WIDTH_PX,
                 windowHeight: A4_HEIGHT_PX,
                 backgroundColor: '#ffffff'
             });
 
-            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            const imgData = canvas.toDataURL('image/jpeg', 0.98);
             
-            if (i > 0) pdf.addPage(); // إضافة صفحة جديدة في الـ PDF (عدا الأولى)
+            if (i > 0) pdf.addPage();
             pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
         }
 
-        // 4. الحفظ والمشاركة
         const base64Data = pdf.output('datauristring').split(',')[1];
         const safeFileName = `${fileName.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
 
@@ -116,7 +123,7 @@ const printDirectlyOnWeb = async (contentBody: string) => {
     printMount.innerHTML = '';
 };
 
-// --- CSS وتنسيق الجدول (A4 Pixel Perfect) ---
+// --- CSS وتنسيق الصفحة (Fixed Dimensions) ---
 const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false) => `
       ${!isWebPrint ? '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"></head><body>' : ''}
       <div class="report-wrapper">
@@ -125,54 +132,56 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
             * { box-sizing: border-box; }
             body { margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; background: white; color: black; }
             
-            /* تنسيق الصفحة الواحدة لتكون A4 بالضبط */
+            /* الصفحة الواحدة بمقاس ثابت */
             .print-page {
-                width: 794px;  /* A4 width at 96dpi */
-                height: 1123px; /* A4 height at 96dpi */
+                width: 794px;  
+                height: 1123px; 
                 padding: 40px;
                 position: relative;
                 background: white;
-                overflow: hidden; /* ضمان عدم خروج المحتوى */
-                page-break-after: always;
+                border-bottom: 1px dashed #ccc; 
+                overflow: hidden;
                 display: flex;
                 flex-direction: column;
-                border-bottom: 1px dashed #ccc; /* فقط للمعاينة */
             }
 
+            /* الترويسة */
             .simple-header {
                 text-align: center;
                 border-bottom: 3px double #000;
                 padding-bottom: 15px;
                 margin-bottom: 20px;
+                height: 140px; /* ارتفاع ثابت للترويسة */
             }
-            .school-name { font-size: 20px; font-weight: bold; margin-bottom: 8px; }
-            .report-title { font-size: 26px; font-weight: 800; margin: 10px 0; color: #000; }
+            .school-name { font-size: 22px; font-weight: bold; margin-bottom: 10px; }
+            .report-title { font-size: 28px; font-weight: 800; margin: 10px 0; color: #000; }
             
             .meta-info { 
                 display: flex; 
                 justify-content: space-between; 
+                align-items: center;
                 font-weight: bold; 
                 font-size: 16px; 
                 margin-top: 15px;
-                background: #f8f9fa;
-                padding: 8px 15px;
+                background: #f1f5f9;
+                padding: 10px 20px;
                 border: 1px solid #000;
-                border-radius: 4px;
+                border-radius: 8px;
             }
 
-            /* الجدول - إصلاح المسافات */
+            /* الجدول */
             table { 
                 width: 100%; 
                 border-collapse: collapse; 
-                font-size: 14px; /* حجم خط مريح */
+                font-size: 14px; 
                 border: 1px solid #000;
                 margin-top: 10px;
             }
             
             th { 
-                background-color: #e9ecef !important; 
+                background-color: #e2e8f0 !important; 
                 font-weight: 800; 
-                padding: 10px 5px; 
+                padding: 12px 5px; 
                 border: 1px solid #000; 
                 text-align: center;
                 color: #000;
@@ -180,34 +189,35 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
 
             td { 
                 border: 1px solid #000; 
-                padding: 6px 5px; 
+                padding: 5px; 
                 text-align: center; 
                 height: 28px; /* ارتفاع ثابت للصف */
                 vertical-align: middle;
             }
 
             tr:nth-child(even) { background-color: #ffffff; }
-            tr:nth-child(odd) { background-color: #fcfcfc; }
+            tr:nth-child(odd) { background-color: #f8fafc; }
 
+            /* التذييل */
+            .signatures {
+                position: absolute;
+                bottom: 50px;
+                left: 40px;
+                right: 40px;
+                display: flex;
+                justify-content: space-between;
+                font-weight: bold;
+                font-size: 16px;
+            }
+            
             .footer-page {
                 position: absolute;
-                bottom: 30px;
-                left: 0; 
+                bottom: 15px;
+                left: 0;
                 right: 0;
                 text-align: center;
                 font-size: 12px;
-                border-top: 1px solid #eee;
-                padding-top: 10px;
-                width: 100%;
-            }
-            
-            .signatures {
-                margin-top: auto;
-                margin-bottom: 60px;
-                display: flex;
-                justify-content: space-around;
-                font-weight: bold;
-                font-size: 14px;
+                color: #666;
             }
         </style>
         ${bodyContent}
@@ -221,7 +231,7 @@ const chunkArray = <T>(array: T[], size: number): T[][] => {
     return chunked;
 };
 
-// --- المولدات (Generators) ---
+// --- المولدات ---
 
 // 1. كشف الحضور والغياب
 const generateSingleClassHTML = (
@@ -229,6 +239,7 @@ const generateSingleClassHTML = (
     allStudents: Student[], attendanceData: Record<string, AttendanceStatus>
 ) => {
     const studentChunks = chunkArray(allStudents, ROWS_PER_PAGE);
+    const dateWithDay = formatDateWithDay(date); // إضافة اليوم
     
     return studentChunks.map((chunk, pageIndex) => {
         const rows = chunk.map((student, index) => {
@@ -240,7 +251,7 @@ const generateSingleClassHTML = (
 
             if (status === AttendanceStatus.ABSENT) { 
                 statusText = 'غائب'; 
-                rowStyle = 'background-color: #fff1f2 !important; color: #e11d48; font-weight: bold;';
+                rowStyle = 'background-color: #fee2e2 !important; color: #b91c1c; font-weight: bold;';
             } else if (status === AttendanceStatus.TRUANT) { 
                 statusText = 'تسرب'; 
                 rowStyle = 'color: #d97706; font-weight: bold;';
@@ -252,7 +263,7 @@ const generateSingleClassHTML = (
             return `
             <tr style="${rowStyle}">
                 <td>${globalIndex}</td>
-                <td style="text-align: right; padding-right: 10px;">${student.name}</td>
+                <td style="text-align: right; padding-right: 15px;">${student.name}</td>
                 <td>${statusText}</td>
                 <td></td>
             </tr>`;
@@ -264,9 +275,8 @@ const generateSingleClassHTML = (
                     <div class="school-name">${schoolName}</div>
                     <div class="report-title">كشف الحضور والغياب اليومي</div>
                     <div class="meta-info">
-                        <span>التاريخ: ${date}</span>
                         <span>الصف: ${gradeName} / ${className}</span>
-                    </div>
+                        <span>${dateWithDay}</span> </div>
                 </div>
                 <table>
                     <colgroup>
@@ -284,7 +294,7 @@ const generateSingleClassHTML = (
     }).join('');
 };
 
-// --- الدوال المصدرة (Exported Functions) ---
+// --- الدوال المصدرة ---
 
 export const generateAttendanceSheetHTML = (
     schoolName: string, gradeName: string, className: string, date: string,
@@ -307,6 +317,7 @@ export const generateDailyAbsenceReportHTML = (
     schoolName: string, date: string, allAbsentStudents: any[]
 ) => {
     const studentChunks = chunkArray(allAbsentStudents, ROWS_PER_PAGE);
+    const dateWithDay = formatDateWithDay(date);
 
     return studentChunks.map((chunk, pageIndex) => {
         const rows = chunk.map((student, index) => {
@@ -331,8 +342,8 @@ export const generateDailyAbsenceReportHTML = (
                     <div class="school-name">${schoolName}</div>
                     <div class="report-title">تقرير الغياب والتسرب اليومي</div>
                     <div class="meta-info">
-                        <span>التاريخ: ${date}</span>
                         <span>العدد: ${allAbsentStudents.length}</span>
+                        <span>${dateWithDay}</span>
                     </div>
                 </div>
                 <table>
@@ -382,7 +393,7 @@ export const generateClassPeriodReportHTML = (
                     <div class="report-title">تقرير الانضباط الطلابي</div>
                     <div class="meta-info">
                         <span>الصف: ${gradeName}/${className}</span>
-                        <span>الفترة: من ${startDate} إلى ${endDate}</span>
+                        <span>من ${startDate} إلى ${endDate}</span>
                     </div>
                 </div>
                 <table>
@@ -409,10 +420,12 @@ export const generateStudentReportHTML = (
                 else if (rec.status === AttendanceStatus.TRUANT) statusText = 'تسرب';
                 else if (rec.status === AttendanceStatus.ESCAPE) statusText = 'هروب';
 
+                const dateDisplay = formatDateWithDay(rec.date);
+
                 return `
                 <tr>
                     <td>${i + 1}</td>
-                    <td>${new Date(rec.date).toLocaleDateString('ar-EG')}</td>
+                    <td>${dateDisplay}</td>
                     <td>${statusText}</td>
                     <td>${rec.note || '-'}</td>
                 </tr>
@@ -439,7 +452,7 @@ export const generateStudentReportHTML = (
     }).join('');
 };
 
-// --- دوال التنفيذ المباشر (Executors) ---
+// --- التنفيذ ---
 
 export const printAttendanceSheet = (
     schoolName: string, gradeName: string, className: string, date: string, 
@@ -489,7 +502,7 @@ export const printSummonLetter = (
                     <p><strong>الصف:</strong> ${gradeName} / ${className}</p>
                     <br/>
                     <p>السلام عليكم ورحمة الله وبركاته،،،</p>
-                    <p>نرجو منكم التكرم بالحضور إلى المدرسة يوم <strong>${date}</strong> الساعة <strong>${time}</strong>.</p>
+                    <p>نرجو منكم التكرم بالحضور إلى المدرسة يوم <strong>${formatDateWithDay(date)}</strong> الساعة <strong>${time}</strong>.</p>
                     <p><strong>وذلك لمناقشة:</strong> ${reason}</p>
                     <br/>
                     <p>شاكرين لكم حسن تعاونكم لما فيه مصلحة الطالب.</p>
