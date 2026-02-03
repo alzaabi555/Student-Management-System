@@ -1,5 +1,5 @@
 import { AttendanceStatus, AttendanceRecord, Student } from '../types';
-import { StudentPeriodStats } from './dataService';
+import { StudentPeriodStats, SchoolAssets } from './dataService';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
@@ -10,8 +10,14 @@ import jsPDF from 'jspdf';
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297; 
 const A4_WIDTH_PX = 794; 
-// ✅ تم التعديل إلى 30 طالب كما طلبت
-const ROWS_PER_PAGE = 30; 
+const ROWS_PER_PAGE = 30; // 30 طالب كما طلبت
+
+/**
+ * دالة مساعدة لتصدير أي محتوى HTML إلى PDF (مطلوبة في Reports.tsx)
+ */
+export const shareHTMLAsPDF = async (contentBody: string, fileName: string) => {
+    await executeOutputStrategy(contentBody, fileName);
+};
 
 const executeOutputStrategy = async (contentHTML: string, fileName: string) => {
     if (Capacitor.isNativePlatform()) {
@@ -34,7 +40,7 @@ const generateAndSharePDF = async (contentHTML: string, fileName: string) => {
     document.body.appendChild(container);
 
     try {
-        await new Promise(resolve => setTimeout(resolve, 800)); // انتظار التحميل
+        await new Promise(resolve => setTimeout(resolve, 800));
 
         const canvas = await html2canvas(container.querySelector('.report-container') as HTMLElement, {
             scale: 2, 
@@ -104,7 +110,7 @@ const printDirectlyOnWeb = async (contentBody: string) => {
     printMount.innerHTML = '';
 };
 
-// --- CSS وتنسيق الجدول المبسط (حل مشكلة التشتت) ---
+// --- CSS وتنسيق الجدول ---
 const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false) => `
       ${!isWebPrint ? '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"></head><body>' : ''}
       <div class="report-container">
@@ -125,7 +131,7 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
             }
             .print-page:last-child { page-break-after: auto; }
 
-            /* ترويسة بسيطة جداً */
+            /* ترويسة بسيطة */
             .simple-header {
                 text-align: center;
                 border-bottom: 2px solid #000;
@@ -145,11 +151,11 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
                 border: 1px solid #ccc;
             }
 
-            /* ✅ حل مشكلة تشتت الجدول */
+            /* الجدول */
             table { 
                 width: 100%; 
                 border-collapse: collapse; 
-                font-size: 12px; /* تصغير الخط قليلاً ليسع 30 طالب */
+                font-size: 12px;
                 border: 1px solid #000;
             }
             
@@ -165,10 +171,9 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
                 border: 1px solid #000; 
                 padding: 4px; 
                 text-align: center; 
-                height: 25px; /* ارتفاع ثابت للصف */
+                height: 25px;
             }
 
-            /* تلوين الصفوف */
             tr:nth-child(even) { background-color: #f9f9f9; }
 
             .footer-page {
@@ -190,9 +195,9 @@ const chunkArray = <T>(array: T[], size: number): T[][] => {
     return chunked;
 };
 
-// --- المولدات ---
+// --- المولدات (Generators) - يجب تصديرها لأن Reports.tsx يستخدمها ---
 
-// 1. تقرير كشف الحضور والغياب (للصف)
+// 1. كشف الحضور والغياب (صف واحد)
 const generateSingleClassHTML = (
     schoolName: string, gradeName: string, className: string, date: string,
     allStudents: Student[], attendanceData: Record<string, AttendanceStatus>
@@ -212,7 +217,8 @@ const generateSingleClassHTML = (
                 <td>${globalIndex}</td>
                 <td style="text-align: right; padding-right: 5px;">${student.name}</td>
                 <td>${statusText}</td>
-                <td></td> </tr>`;
+                <td></td>
+            </tr>`;
         }).join('');
 
         return `
@@ -225,7 +231,6 @@ const generateSingleClassHTML = (
                         <span>الصف: ${gradeName} / ${className}</span>
                     </div>
                 </div>
-                
                 <table>
                     <colgroup>
                         <col style="width: 8%;">
@@ -236,14 +241,32 @@ const generateSingleClassHTML = (
                     <thead><tr><th>م</th><th>الاسم</th><th>الحالة</th><th>ملاحظات</th></tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
-
                 <div class="footer-page">صفحة ${pageIndex + 1} من ${studentChunks.length}</div>
             </div>
         `;
     }).join('');
 };
 
-// 2. تقرير الغياب اليومي (الذي ظهر فيه التشتت سابقاً)
+// ✅ تصدير الدالة: توليد كشف الحضور (يستخدمها Reports.tsx)
+export const generateAttendanceSheetHTML = (
+    schoolName: string, gradeName: string, className: string, date: string,
+    students: Student[], attendanceData: Record<string, AttendanceStatus>
+) => {
+    return generateSingleClassHTML(schoolName, gradeName, className, date, students, attendanceData);
+};
+
+// ✅ تصدير الدالة: توليد تقرير شامل لكل الصفوف (يستخدمها Reports.tsx)
+export const generateGradeDailyReportHTML = (
+    schoolName: string, gradeName: string, date: string,
+    classesData: { className: string, students: Student[] }[],
+    attendanceData: Record<string, AttendanceStatus>
+) => {
+    return classesData.map((cls) => {
+        return generateSingleClassHTML(schoolName, gradeName, cls.className, date, cls.students, attendanceData);
+    }).join('');
+};
+
+// ✅ تصدير الدالة: تقرير الغياب اليومي (يستخدمها Reports.tsx)
 export const generateDailyAbsenceReportHTML = (
     schoolName: string, date: string, allAbsentStudents: any[]
 ) => {
@@ -276,7 +299,6 @@ export const generateDailyAbsenceReportHTML = (
                         <span>العدد: ${allAbsentStudents.length}</span>
                     </div>
                 </div>
-                
                 <table>
                     <colgroup>
                         <col style="width: 5%;">
@@ -294,7 +316,84 @@ export const generateDailyAbsenceReportHTML = (
     }).join('');
 };
 
-// --- دوال الاستدعاء ---
+// ✅ تصدير الدالة: تقرير إحصائي للفصل (يستخدمها Reports.tsx)
+export const generateClassPeriodReportHTML = (
+  schoolName: string, gradeName: string, className: string, startDate: string, endDate: string, stats: StudentPeriodStats[]
+) => {
+    const sortedStats = [...stats].sort((a, b) => (b.absentCount + b.truantCount) - (a.absentCount + a.truantCount));
+    const chunks = chunkArray(sortedStats, ROWS_PER_PAGE);
+
+    return chunks.map((chunk, pageIndex) => {
+        const rows = chunk.map((stat, i) => `
+            <tr>
+                <td>${(pageIndex * ROWS_PER_PAGE) + i + 1}</td>
+                <td style="text-align:right;padding-right:10px;">${stat.student.name}</td>
+                <td>${stat.absentCount}</td>
+                <td>${stat.truantCount}</td>
+                <td style="font-weight:bold;">${stat.absentCount + stat.truantCount}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <div class="print-page">
+                <div class="simple-header">
+                    <div class="school-name">${schoolName}</div>
+                    <div class="report-title">تقرير الانضباط الطلابي</div>
+                    <div class="meta-info">
+                        <span>الصف: ${gradeName}/${className}</span>
+                        <span>الفترة: من ${startDate} إلى ${endDate}</span>
+                    </div>
+                </div>
+                <table>
+                    <thead><tr><th>م</th><th>الاسم</th><th>غياب</th><th>تسرب</th><th>الإجمالي</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+                <div class="footer-page">صفحة ${pageIndex + 1}</div>
+            </div>
+        `;
+    }).join('');
+};
+
+// ✅ تصدير الدالة: تقرير طالب فردي (يستخدمها Reports.tsx)
+export const generateStudentReportHTML = (
+    schoolName: string, studentName: string, gradeName: string, className: string, records: AttendanceRecord[], periodText?: string
+) => {
+    const chunks = records.length > 0 ? chunkArray(records, 15) : [[]];
+    
+    return chunks.map((chunk, pageIndex) => {
+        const rows = chunk.length === 0 ? 
+            `<tr><td colspan="4" style="padding:20px;">لا توجد غيابات مسجلة.</td></tr>` :
+            chunk.map((rec, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${new Date(rec.date).toLocaleDateString('ar-EG')}</td>
+                    <td>${rec.status === 'absent' ? 'غائب' : 'تسرب'}</td>
+                    <td>${rec.note || '-'}</td>
+                </tr>
+            `).join('');
+
+        return `
+            <div class="print-page">
+                <div class="simple-header">
+                    <div class="school-name">${schoolName}</div>
+                    <div class="report-title">سجل متابعة طالب</div>
+                    <div class="meta-info">
+                        <span>الطالب: ${studentName}</span>
+                        <span>الصف: ${gradeName}/${className}</span>
+                    </div>
+                </div>
+                <table>
+                    <thead><tr><th>م</th><th>التاريخ</th><th>الحالة</th><th>ملاحظات</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+                <div class="footer-page">صفحة ${pageIndex + 1}</div>
+            </div>
+        `;
+    }).join('');
+};
+
+// --- دوال التنفيذ المباشر (Executors) ---
+
 export const printAttendanceSheet = (
     schoolName: string, gradeName: string, className: string, date: string, 
     students: Student[], attendanceData: Record<string, AttendanceStatus>,
@@ -302,9 +401,9 @@ export const printAttendanceSheet = (
 ) => {
     let html = '';
     if (isFullGrade && classesData.length > 0) {
-        html = classesData.map(cls => generateSingleClassHTML(schoolName, gradeName, cls.className, date, cls.students, attendanceData)).join('');
+        html = generateGradeDailyReportHTML(schoolName, gradeName, date, classesData, attendanceData);
     } else {
-        html = generateSingleClassHTML(schoolName, gradeName, className, date, students, attendanceData);
+        html = generateAttendanceSheetHTML(schoolName, gradeName, className, date, students, attendanceData);
     }
     executeOutputStrategy(html, `كشف_${className}_${date}`);
 };
@@ -314,4 +413,48 @@ export const printDailyAbsenceReport = (schoolName: string, date: string, absent
     executeOutputStrategy(html, `غياب_${date}`);
 };
 
-// (يمكنك إضافة بقية دوال التقارير بنفس النمط البسيط إذا احتجتها)
+export const printClassPeriodReport = (schoolName: string, gradeName: string, className: string, startDate: string, endDate: string, stats: StudentPeriodStats[]) => {
+    const html = generateClassPeriodReportHTML(schoolName, gradeName, className, startDate, endDate, stats);
+    executeOutputStrategy(html, `تقرير_فصل_${className}`);
+};
+
+export const printStudentReport = (schoolName: string, studentName: string, gradeName: string, className: string, records: AttendanceRecord[], periodText?: string) => {
+    const html = generateStudentReportHTML(schoolName, studentName, gradeName, className, records, periodText);
+    executeOutputStrategy(html, `تقرير_الطالب_${studentName}`);
+};
+
+// ✅ إعادة إضافة دالة طباعة خطاب الاستدعاء (Summon Letter) - كانت مفقودة وتسبب الخطأ في SummonPage.tsx
+export const printSummonLetter = (
+  schoolName: string, districtName: string, studentName: string, gradeName: string, className: string, date: string, time: string, reason: string, issueDate: string, assets?: SchoolAssets
+) => {
+      const html = `
+        <div class="print-page" style="border: none;">
+            <div style="border: 2px solid #000; padding: 30px; height: 95%; box-sizing: border-box; position: relative;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <div style="font-size: 18px; font-weight: bold;">سلطنة عُمان</div>
+                    <div style="font-size: 18px; font-weight: bold;">وزارة التربية والتعليم</div>
+                    <div style="font-size: 16px;">مدرسة ${schoolName}</div>
+                </div>
+                
+                <div style="text-align: center; font-size: 24px; font-weight: bold; text-decoration: underline; margin: 30px 0;">استدعاء ولي أمر</div>
+
+                <div style="font-size: 16px; line-height: 2.0; text-align: justify; direction: rtl;">
+                    <p><strong>الفاضل ولي أمر الطالب:</strong> ${studentName}</p>
+                    <p><strong>الصف:</strong> ${gradeName} / ${className}</p>
+                    <br/>
+                    <p>السلام عليكم ورحمة الله وبركاته،،،</p>
+                    <p>نرجو منكم التكرم بالحضور إلى المدرسة يوم <strong>${date}</strong> الساعة <strong>${time}</strong>.</p>
+                    <p><strong>وذلك لمناقشة:</strong> ${reason}</p>
+                    <br/>
+                    <p>شاكرين لكم حسن تعاونكم لما فيه مصلحة الطالب.</p>
+                </div>
+
+                <div style="margin-top: 60px; display: flex; justify-content: space-between;">
+                    <div style="text-align: center;"><strong>إدارة المدرسة</strong><br/>.........................</div>
+                    <div style="text-align: center;"><strong>ولي الأمر</strong><br/>.........................</div>
+                </div>
+            </div>
+        </div>
+      `;
+      executeOutputStrategy(html, `استدعاء_${studentName}`);
+};
