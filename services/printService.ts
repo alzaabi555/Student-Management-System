@@ -11,8 +11,8 @@ import jsPDF from 'jspdf';
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297; 
 const A4_WIDTH_PX = 794; 
-// زيادة العدد إلى 25 صفاً في الصفحة الواحدة لتوفير الورق
-const ROWS_PER_PAGE = 25; 
+// رفع عدد الطلاب إلى 30 في الصفحة الواحدة
+const ROWS_PER_PAGE = 30; 
 
 /**
  * المحرك الأساسي للطباعة والمشاركة
@@ -149,6 +149,11 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
             * { box-sizing: border-box; }
             body { margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             
+            @page {
+                size: A4;
+                margin: 0; /* نتحكم بالهوامش داخلياً */
+            }
+
             .report-container { 
                 width: 210mm; 
                 margin: 0 auto; 
@@ -156,21 +161,20 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
                 color: black;
             }
 
-            /* تصميم الصفحة الواحدة - يضمن التقسيم الصحيح */
+            /* تصميم الصفحة الواحدة */
             .print-page {
                 width: 210mm;
-                height: 296mm; /* A4 height approx - 1mm margin */
-                padding: 10mm 10mm; /* تقليل الهوامش قليلاً لزيادة المساحة */
+                height: 297mm;
+                /* هامش 2سم (20mm) من كل الجهات */
+                padding: 20mm; 
                 position: relative;
                 overflow: hidden;
                 display: flex;
                 flex-direction: column;
                 justify-content: flex-start;
                 page-break-after: always;
-                border-bottom: 1px dashed #ddd; /* خط وهمي للمعاينة فقط */
             }
             .print-page:last-child {
-                border-bottom: none;
                 page-break-after: auto;
             }
 
@@ -191,17 +195,18 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
             }
             
             table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px; }
-            th, td { border: 1px solid #000; padding: 4px 2px; text-align: center; } /* تقليل التباعد الداخلي */
-            th { background-color: #e5e7eb !important; font-weight: 800; color: #000; height: 30px; }
+            th, td { border: 1px solid #000; padding: 2px 2px; text-align: center; height: 1.6em; } /* تقليل ارتفاع الصف ليناسب 30 طالب */
+            th { background-color: #e5e7eb !important; font-weight: 800; color: #000; }
             
-            .status-absent { background-color: #ffe4e6 !important; }
-            .status-truant { background-color: #fef3c7 !important; }
+            /* إزالة الخلفية الحمراء */
+            .status-absent { background-color: transparent !important; }
+            .status-truant { background-color: transparent !important; }
             
             .footer-sig { 
                 position: absolute; 
-                bottom: 15mm; 
-                left: 15mm; 
-                right: 15mm; 
+                bottom: 20mm; /* حسب الهامش السفلي 2سم */
+                left: 20mm; 
+                right: 20mm; 
                 display: flex; 
                 justify-content: space-between; 
             }
@@ -209,7 +214,7 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
             
             .page-number {
                 position: absolute;
-                bottom: 5mm;
+                bottom: 10mm;
                 left: 0;
                 right: 0;
                 text-align: center;
@@ -219,7 +224,7 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
 
             @media print {
                 .report-container { width: 100%; }
-                .print-page { border-bottom: none; height: auto; min-height: 290mm; }
+                .print-page { height: auto; min-height: 297mm; }
             }
         </style>
         ${bodyContent}
@@ -299,6 +304,10 @@ export const generateDailyAbsenceReportHTML = (
     date: string,
     allAbsentStudents: any[]
 ) => {
+    // تحويل التاريخ لإضافة اسم اليوم
+    const dateObj = new Date(date);
+    const dateWithDay = dateObj.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'numeric', day: 'numeric' });
+    
     const studentChunks = chunkArray(allAbsentStudents, ROWS_PER_PAGE);
 
     return studentChunks.map((chunk, pageIndex) => {
@@ -324,7 +333,7 @@ export const generateDailyAbsenceReportHTML = (
                 <div class="print-header">
                     <h1 class="print-title">${schoolName}</h1>
                     <div class="print-subtitle">تقرير الغياب والتسرب اليومي</div>
-                    <div class="print-meta"><span>التاريخ: ${date}</span><span>الإجمالي: ${allAbsentStudents.length}</span></div>
+                    <div class="print-meta"><span>التاريخ: ${dateWithDay}</span><span>الإجمالي: ${allAbsentStudents.length}</span></div>
                 </div>
                 <table>
                     <thead>
@@ -402,7 +411,7 @@ export const generateClassPeriodReportHTML = (
 export const generateStudentReportHTML = (
   schoolName: string, studentName: string, gradeName: string, className: string, records: AttendanceRecord[], periodText?: string
 ) => {
-  const STUDENT_ROWS = 10; // عدد أقل للطالب لأنه يحتوي على تفاصيل نصية أكثر
+  const STUDENT_ROWS = 15; // زيادة عدد الصفوف للطالب أيضا
   const recordChunks = records.length > 0 ? chunkArray(records, STUDENT_ROWS) : [[]];
 
   return recordChunks.map((chunk, pageIndex) => {
@@ -414,7 +423,10 @@ export const generateStudentReportHTML = (
         if (record.status === AttendanceStatus.ABSENT) { statusText = 'غائب'; rowClass = 'status-absent'; } 
         else if (record.status === AttendanceStatus.TRUANT) { statusText = 'تسرب من الحصة'; rowClass = 'status-truant'; if (record.period) details = `حصة: ${record.period}`; } 
         else if (record.status === AttendanceStatus.ESCAPE) { statusText = 'تسرب من المدرسة'; rowClass = 'status-truant'; if (record.note) details = `ملاحظة: ${record.note}`; }
-        return `<tr class="${rowClass}"><td>${globalIndex}</td><td>${record.date}</td><td>${statusText}</td><td style="font-size: 10px;">${details}</td></tr>`;
+        
+        const dateWithDay = new Date(record.date).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'numeric', day: 'numeric' });
+        
+        return `<tr class="${rowClass}"><td>${globalIndex}</td><td>${dateWithDay}</td><td>${statusText}</td><td style="font-size: 10px;">${details}</td></tr>`;
       }).join('');
 
       return `
@@ -425,8 +437,8 @@ export const generateStudentReportHTML = (
             <div class="print-meta"><span>الطالب: ${studentName}</span><span>الصف: ${gradeName} / ${className}</span></div>
             </div>
             ${pageIndex === 0 ? `<div style="margin: 10px 0; font-weight:bold;">${periodText}</div>` : ''}
-            <table><thead><tr><th width="40">#</th><th width="100">التاريخ</th><th>الحالة</th><th>تفاصيل</th></tr></thead><tbody>${recordsRows}</tbody></table>
-            <div class="footer-sig" style="bottom: 15mm;"><div>توقيع ولي الأمر بالعلم</div><div>الأخصائي الاجتماعي</div></div>
+            <table><thead><tr><th width="40">#</th><th width="150">التاريخ</th><th>الحالة</th><th>تفاصيل</th></tr></thead><tbody>${recordsRows}</tbody></table>
+            <div class="footer-sig" style="bottom: 20mm;"><div>توقيع ولي الأمر بالعلم</div><div>الأخصائي الاجتماعي</div></div>
             <div class="page-number">صفحة ${pageIndex + 1} من ${recordChunks.length}</div>
         </div>
       `;

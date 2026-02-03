@@ -196,6 +196,7 @@ export interface SchoolAssets {
     committeeSig?: string;
     schoolStamp?: string;
     principalSig?: string;
+    supervisorImage?: string; // صورة المشرف
 }
 
 // Grades & Classes
