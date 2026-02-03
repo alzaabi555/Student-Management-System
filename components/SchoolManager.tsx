@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Layers, Plus, Trash2, Folder, GraduationCap, AlertCircle, Database, Download, Upload, RefreshCw, AlertTriangle, Image as ImageIcon, Check } from 'lucide-react';
+import { Layers, Plus, Trash2, Folder, GraduationCap, AlertCircle, Database, Download, Upload, RefreshCw, AlertTriangle, Image as ImageIcon, Check, UserCircle } from 'lucide-react';
 import { grades, classes, addGrade, deleteGrade, addClass, deleteClass, exportDatabase, importDatabase, resetDatabase, getSchoolAssets, saveSchoolAssets } from '../services/dataService';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
@@ -16,14 +16,16 @@ const SchoolManager: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Logo State
+  // Logo & Supervisor Image State
   const [logo, setLogo] = useState<string | null>(null);
+  const [supervisorImg, setSupervisorImg] = useState<string | null>(null);
 
   useEffect(() => {
       const loadAssets = async () => {
           const assets = await getSchoolAssets();
-          if (assets && assets.headerLogo) {
-              setLogo(assets.headerLogo);
+          if (assets) {
+              if (assets.headerLogo) setLogo(assets.headerLogo);
+              if (assets.supervisorImage) setSupervisorImg(assets.supervisorImage);
           }
       };
       loadAssets();
@@ -60,28 +62,44 @@ const SchoolManager: React.FC = () => {
     if (window.confirm('حذف الفصل؟')) { deleteClass(id); refresh(); }
   };
 
-  // --- Logo Handling ---
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // --- Image Handling ---
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'supervisor') => {
     if (e.target.files && e.target.files[0]) {
         const file = e.target.files[0];
         const reader = new FileReader();
         reader.onloadend = async () => {
             const base64 = reader.result as string;
             const currentAssets = await getSchoolAssets();
-            const newAssets = { ...currentAssets, headerLogo: base64 };
+            const newAssets = { ...currentAssets };
+            
+            if (type === 'logo') {
+                newAssets.headerLogo = base64;
+                setLogo(base64);
+            } else {
+                newAssets.supervisorImage = base64;
+                setSupervisorImg(base64);
+            }
+            
             await saveSchoolAssets(newAssets);
-            setLogo(base64);
         };
         reader.readAsDataURL(file);
     }
   };
 
-  const handleDeleteLogo = async () => {
-      if(window.confirm('هل تريد حذف شعار المدرسة؟ سيعود النظام للشعار الافتراضي.')) {
+  const handleDeleteImage = async (type: 'logo' | 'supervisor') => {
+      if(window.confirm('هل أنت متأكد من الحذف؟')) {
         const currentAssets = await getSchoolAssets();
-        const newAssets = { ...currentAssets, headerLogo: undefined };
+        const newAssets = { ...currentAssets };
+        
+        if (type === 'logo') {
+            newAssets.headerLogo = undefined;
+            setLogo(null);
+        } else {
+            newAssets.supervisorImage = undefined;
+            setSupervisorImg(null);
+        }
+        
         await saveSchoolAssets(newAssets);
-        setLogo(null);
       }
   };
   
@@ -187,54 +205,84 @@ const SchoolManager: React.FC = () => {
         <p className="text-gray-500">إدارة الهيكل المدرسي، هوية المدرسة، والبيانات</p>
       </div>
 
-      {/* --- School Branding Section --- */}
-      <div className="card p-6 border-l-4 border-l-purple-500">
-         <div className="flex items-start justify-between">
-            <div>
-                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    <ImageIcon className="text-purple-600" size={20} />
-                    هوية المدرسة
-                </h3>
-                <p className="text-sm text-gray-500 mt-1">رفع شعار المدرسة ليظهر في الصفحة الرئيسية والتقارير</p>
+      {/* --- School Branding & Supervisor Section --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          {/* Logo Card */}
+          <div className="card p-6 border-l-4 border-l-purple-500">
+            <div className="flex items-start justify-between">
+                <div>
+                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <ImageIcon className="text-purple-600" size={20} />
+                        شعار المدرسة
+                    </h3>
+                </div>
+                {logo && <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full"><Check size={12}/> مفعل</span>}
             </div>
-            {logo && <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full"><Check size={12}/> الشعار مفعل</span>}
-         </div>
-
-         <div className="mt-6 flex items-center gap-6">
-             <div className="relative w-24 h-24 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden group">
-                 {logo ? (
-                     <img src={logo} alt="School Logo" className="w-full h-full object-contain p-2" />
-                 ) : (
-                     <ImageIcon className="text-gray-300" size={32} />
-                 )}
-                 <input 
-                    type="file" 
-                    accept="image/*" 
-                    onChange={handleLogoUpload}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                    title="تغيير الشعار"
-                 />
-             </div>
-             
-             <div className="flex flex-col gap-2">
-                 <button className="btn btn-secondary text-xs relative overflow-hidden">
-                     <Upload size={14} />
-                     <span>رفع شعار جديد</span>
-                     <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={handleLogoUpload}
+            <div className="mt-6 flex items-center gap-6">
+                <div className="relative w-24 h-24 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden group">
+                    {logo ? (
+                        <img src={logo} alt="School Logo" className="w-full h-full object-contain p-2" />
+                    ) : (
+                        <ImageIcon className="text-gray-300" size={32} />
+                    )}
+                    <input 
+                        type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'logo')}
                         className="absolute inset-0 opacity-0 cursor-pointer"
-                     />
-                 </button>
-                 {logo && (
-                     <button onClick={handleDeleteLogo} className="btn bg-white border border-red-200 text-red-600 hover:bg-red-50 text-xs">
-                         <Trash2 size={14} />
-                         <span>حذف الشعار</span>
-                     </button>
-                 )}
-             </div>
-         </div>
+                        title="تغيير الشعار"
+                    />
+                </div>
+                <div className="flex flex-col gap-2">
+                    <button className="btn btn-secondary text-xs relative overflow-hidden">
+                        <Upload size={14} /> <span>رفع</span>
+                        <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'logo')} className="absolute inset-0 opacity-0 cursor-pointer" />
+                    </button>
+                    {logo && (
+                        <button onClick={() => handleDeleteImage('logo')} className="btn bg-white border border-red-200 text-red-600 hover:bg-red-50 text-xs">
+                            <Trash2 size={14} /> <span>حذف</span>
+                        </button>
+                    )}
+                </div>
+            </div>
+          </div>
+
+          {/* Supervisor Card */}
+          <div className="card p-6 border-l-4 border-l-amber-500">
+            <div className="flex items-start justify-between">
+                <div>
+                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <UserCircle className="text-amber-600" size={20} />
+                        مشرف السجل
+                    </h3>
+                </div>
+                {supervisorImg && <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full"><Check size={12}/> مفعل</span>}
+            </div>
+            <div className="mt-6 flex items-center gap-6">
+                <div className="relative w-24 h-24 bg-gray-50 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden group">
+                    {supervisorImg ? (
+                        <img src={supervisorImg} alt="Supervisor" className="w-full h-full object-cover" />
+                    ) : (
+                        <UserCircle className="text-gray-300" size={32} />
+                    )}
+                    <input 
+                        type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'supervisor')}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        title="تغيير الصورة"
+                    />
+                </div>
+                <div className="flex flex-col gap-2">
+                    <button className="btn btn-secondary text-xs relative overflow-hidden">
+                        <Upload size={14} /> <span>رفع صورة</span>
+                        <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'supervisor')} className="absolute inset-0 opacity-0 cursor-pointer" />
+                    </button>
+                    {supervisorImg && (
+                        <button onClick={() => handleDeleteImage('supervisor')} className="btn bg-white border border-red-200 text-red-600 hover:bg-red-50 text-xs">
+                            <Trash2 size={14} /> <span>حذف</span>
+                        </button>
+                    )}
+                </div>
+            </div>
+          </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[500px]">

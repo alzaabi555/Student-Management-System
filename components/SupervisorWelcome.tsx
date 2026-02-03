@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Star, Heart, Award, ArrowLeft } from 'lucide-react';
+import { getSchoolAssets } from '../services/dataService';
 
 interface SupervisorWelcomeProps {
   onStart: () => void;
@@ -8,10 +9,38 @@ interface SupervisorWelcomeProps {
 
 const SupervisorWelcome: React.FC<SupervisorWelcomeProps> = ({ onStart }) => {
   const [show, setShow] = useState(false);
+  const [supervisorImg, setSupervisorImg] = useState<string | null>(null);
+  const [praiseMessage, setPraiseMessage] = useState('');
 
   useEffect(() => {
     // تشغيل الأنيميشن عند التحميل
     setShow(true);
+
+    // تحميل الصورة
+    const loadData = async () => {
+        const assets = await getSchoolAssets();
+        if (assets && assets.supervisorImage) {
+            setSupervisorImg(assets.supervisorImage);
+        }
+    };
+    loadData();
+
+    // تحديد رسالة اليوم (Sunday - Thursday)
+    const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+    
+    const messages: Record<string, string> = {
+        'Sunday': 'بداية أسبوع موفقة! همتك العالية وانضباطك هي الوقود الذي يحرك المدرسة نحو التميز.',
+        'Monday': 'جهودك المتواصلة تصنع الفرق دائماً. شكراً لحرصك الدائم على متابعة كل تفاصيل السجل بدقة.',
+        'Tuesday': 'انتصاف الأسبوع يعكس ثباتك. دمت شعلة من النشاط والتركيز التي لا تنطفئ يا صانع الأثر.',
+        'Wednesday': 'كل يوم تثبت أنك القلب النابض للنظام. دمت مثالاً للعطاء والتفاني في خدمة الطلاب والمدرسة.',
+        'Thursday': 'ختامها مسك! شكراً لعطائك اللا محدود طوال الأسبوع، ونتمنى لك إجازة سعيدة ومستحقة.',
+        // رسائل نهاية الأسبوع
+        'Friday': 'إجازة سعيدة! استمتع بوقتك لتعود إلينا بطاقة متجددة.',
+        'Saturday': 'يوم راحة سعيد، ننتظر إبداعك المعتاد في بداية الأسبوع القادم.'
+    };
+
+    // تعيين الرسالة بناءً على اليوم، أو رسالة افتراضية
+    setPraiseMessage(messages[today] || 'شكراً لجهودك العظيمة اليومية في ضبط النظام المدرسي ❤️');
   }, []);
 
   return (
@@ -27,9 +56,13 @@ const SupervisorWelcome: React.FC<SupervisorWelcomeProps> = ({ onStart }) => {
         {/* بطاقة الترحيب */}
         <div className="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl p-8 md:p-12 text-center shadow-2xl shadow-black/50">
             
-            {/* الأيقونة العائمة */}
-            <div className="w-24 h-24 bg-gradient-to-br from-amber-300 to-amber-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg shadow-amber-500/30 ring-4 ring-white/10 animate-bounce">
-                <Award size={48} className="text-white" />
+            {/* الأيقونة العائمة أو الصورة */}
+            <div className="w-24 h-24 bg-gradient-to-br from-amber-300 to-amber-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg shadow-amber-500/30 ring-4 ring-white/10 animate-bounce overflow-hidden">
+                {supervisorImg ? (
+                    <img src={supervisorImg} alt="Supervisor" className="w-full h-full object-cover" />
+                ) : (
+                    <Award size={48} className="text-white" />
+                )}
             </div>
 
             <h1 className="text-3xl md:text-5xl font-extrabold text-white mb-4 leading-tight">
@@ -43,11 +76,7 @@ const SupervisorWelcome: React.FC<SupervisorWelcomeProps> = ({ onStart }) => {
             </div>
 
             <p className="text-lg md:text-xl text-slate-200 leading-relaxed mb-8 font-light">
-                كل رسالة ترسلها، وكل اتصال تجريه، وكل دقيقة تقضيها في المتابعة،
-                <br className="hidden md:block"/>
-                تساهم في بناء مستقبل طالب وحماية مسيرته التعليمية.
-                <br />
-                <span className="font-bold text-white mt-2 block">شكراً لجهودك العظيمة اليومية ❤️</span>
+                {praiseMessage}
             </p>
 
             <button 
