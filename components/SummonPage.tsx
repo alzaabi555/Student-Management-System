@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { MailWarning, Printer, CalendarClock, User, Share2, Settings, Upload, Image as ImageIcon, Trash2, Eye, X, FileWarning, ChevronDown, Calendar } from 'lucide-react';
+import { MailWarning, Printer, CalendarClock, User, Share2, Settings, Upload, Image as ImageIcon, Trash2, Eye, X, FileWarning, ChevronDown, PenTool, Stamp } from 'lucide-react';
 import { getSchoolSettings, grades, classes, students, saveSchoolAssets, getSchoolAssets, SchoolAssets } from '../services/dataService';
 import { printSummonLetter } from '../services/printService';
 import html2canvas from 'html2canvas';
@@ -40,7 +40,7 @@ const SummonPage: React.FC = () => {
             if (settings.district) setDistrictName(settings.district);
         }
         const savedAssets = await getSchoolAssets();
-        setAssets(savedAssets);
+        setAssets(savedAssets || {});
     };
     fetchData();
   }, []);
@@ -137,7 +137,7 @@ const SummonPage: React.FC = () => {
 
     // Ensure the letter is rendered (even if hidden)
     if (!letterRef.current) {
-        alert('خطأ في تحميل المعاينة، يرجى فتح المعاينة أولاً');
+        alert('حدث خطأ في تجهيز النموذج. يرجى المحاولة مرة أخرى.');
         return;
     }
 
@@ -145,7 +145,7 @@ const SummonPage: React.FC = () => {
         setIsGeneratingPdf(true);
 
         // Force a small delay to ensure rendering if hidden
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
 
         // 1. Generate PDF from the preview element
         const canvas = await html2canvas(letterRef.current, {
@@ -153,16 +153,23 @@ const SummonPage: React.FC = () => {
             useCORS: true,
             logging: false,
             backgroundColor: '#ffffff',
-            windowWidth: 794, // A4 Width in px (approx)
-            windowHeight: 1123 // A4 Height in px (approx)
+            windowWidth: 794, 
+            windowHeight: 1123,
+            onclone: (clonedDoc) => {
+                // Ensure images are visible in clone
+                const images = clonedDoc.getElementsByTagName('img');
+                for (let i = 0; i < images.length; i++) {
+                    images[i].style.visibility = 'visible';
+                }
+            }
         });
 
-        const imgData = canvas.toDataURL('image/png');
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
         const pdf = new jsPDF('p', 'mm', 'a4');
         const imgWidth = 210;
         const imgHeight = (canvas.height * imgWidth) / canvas.width;
         
-        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
         
         // 2. Save PDF to user's device
         const fileName = `استدعاء_${student.name.replace(/\s+/g, '_')}.pdf`;
@@ -200,7 +207,6 @@ const SummonPage: React.FC = () => {
   const isFormValid = selectedStudentId && (reasonType !== 'other' || customReason);
 
   return (
-    // Changed: Removed h-full, added w-full and pb-20 to ensure scrolling works and bottom content is accessible
     <div className="flex flex-col w-full max-w-5xl mx-auto space-y-6 pb-20">
       
       {/* Header */}
@@ -336,17 +342,17 @@ const SummonPage: React.FC = () => {
               className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-blue-600 transition-colors"
            >
               <Settings size={16} />
-              <span>إعدادات الشعار والتواقيع (اختياري)</span>
+              <span>التحقق من التواقيع والختم</span>
               <ChevronDown size={14} className={`transition-transform ${showAssetsSettings ? 'rotate-180' : ''}`} />
            </button>
 
            {showAssetsSettings && (
              <div className="p-4 border border-gray-100 rounded-xl mt-3 grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50/50">
                 {[
-                    { key: 'headerLogo', label: 'شعار المدرسة', icon: <ImageIcon size={14}/> },
-                    { key: 'committeeSig', label: 'رئيس اللجنة', icon: <Upload size={14}/> },
-                    { key: 'schoolStamp', label: 'الختم المدرسي', icon: <ImageIcon size={14}/> },
-                    { key: 'principalSig', label: 'توقيع المدير', icon: <Upload size={14}/> }
+                    { key: 'headerLogo', label: 'شعار الوزارة', icon: <ImageIcon size={14}/> },
+                    { key: 'schoolStamp', label: 'الختم المدرسي', icon: <Stamp size={14}/> },
+                    { key: 'principalSig', label: 'توقيع المدير', icon: <PenTool size={14}/> },
+                    { key: 'committeeSig', label: 'رئيس اللجنة', icon: <PenTool size={14}/> },
                 ].map((item) => (
                     <div key={item.key}>
                         <div className="flex justify-between items-center mb-1">
@@ -450,6 +456,7 @@ const SummonPage: React.FC = () => {
 
       {/* 
          HIDDEN RENDER FOR PDF GENERATION 
+         نضع العنصر خارج الشاشة ولكن بوضعية تسمح بالرسم لضمان ظهور الصور
       */}
       <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
         <div ref={letterRef} className="w-[210mm] min-h-[297mm] bg-white p-[15mm] text-black font-serif">
@@ -488,27 +495,34 @@ const LetterContent: React.FC<{
     return (
         <div className="border-[3px] border-double border-black p-10 h-full flex flex-col relative justify-between">
             {/* Header Section */}
-            <div className="text-center space-y-2 mb-8">
-                <div className="flex justify-center mb-4 h-24 relative">
-                        {assets.headerLogo ? (
-                            <img src={assets.headerLogo} alt="Logo" className="h-full w-auto object-contain" />
-                        ) : (
-                            <img src="/assets/logo.png" alt="Logo" className="h-full w-auto object-contain" />
-                        )}
-                </div>
-                <h2 className="font-bold text-lg leading-tight">سلطنة عُمان</h2>
-                <h2 className="font-bold text-lg leading-tight">وزارة التربية والتعليم</h2>
-                <h3 className="font-bold text-base leading-tight">المديرية العامة للتربية والتعليم لمحافظة {districtName}</h3>
-                <h3 className="font-bold text-base leading-tight">مدرسة {schoolName}</h3>
+            {/* التعديل: النصوص يمين، الشعار وسط */}
+            <div className="flex justify-between items-start mb-8 border-b-2 border-black pb-6">
+                 {/* يمين الصفحة (حسب RTL): النص */}
+                 <div className="text-right space-y-1 w-1/3">
+                    <h2 className="font-bold text-lg leading-tight">سلطنة عُمان</h2>
+                    <h2 className="font-bold text-lg leading-tight">وزارة التربية والتعليم</h2>
+                    <h3 className="font-bold text-base leading-tight">المديرية العامة للتربية والتعليم لمحافظة {districtName}</h3>
+                    <h3 className="font-bold text-base leading-tight">مدرسة {schoolName}</h3>
+                 </div>
+
+                 {/* وسط الصفحة: الشعار (Logo) */}
+                 <div className="flex-1 flex justify-center items-center">
+                    {assets.headerLogo ? (
+                        <img src={assets.headerLogo} alt="Logo" className="h-28 object-contain" />
+                    ) : (
+                        <div className="h-24 w-24 border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-400 rounded-full">شعار الوزارة</div>
+                    )}
+                 </div>
+
+                 {/* يسار الصفحة: فارغ أو تاريخ */}
+                 <div className="w-1/3 flex justify-end items-center">
+                    {/* مساحة فارغة للتوازن */}
+                 </div>
             </div>
 
             {/* Letter Body */}
             <div className="flex-1 text-right space-y-6 text-[18px] leading-relaxed">
                 
-                {/* 
-                    UPDATED HEADER INFO BLOCK 
-                    Added Issue Date to the left side of the second line
-                */}
                 <div className="border-b border-black pb-4 mb-4">
                     <div className="font-bold mb-3 flex justify-between">
                         <span>الفاضل ولي أمر الطالب : ( {studentName} )</span>
@@ -551,32 +565,36 @@ const LetterContent: React.FC<{
             </div>
 
             {/* Signatures Footer */}
-            <div className="mt-16 px-4 flex justify-between items-end relative h-32">
-                {/* Committee Head */}
-                <div className="text-center w-1/3 z-10">
-                    <p className="font-bold mb-4 text-sm">رئيس لجنة شؤون الطلبة</p>
-                    {assets.committeeSig ? (
-                        <img src={assets.committeeSig} className="h-20 mx-auto object-contain" />
-                    ) : (
-                        <div className="mt-10 border-b border-black w-2/3 mx-auto"></div>
-                    )}
-                </div>
-
-                {/* Stamp */}
-                {assets.schoolStamp && (
-                    <div className="absolute left-1/2 bottom-4 transform -translate-x-1/2 z-0 opacity-90 pointer-events-none mix-blend-multiply">
-                            <img src={assets.schoolStamp} className="w-32 object-contain" />
+            <div className="mt-16 relative">
+                 <div className="flex justify-between items-end">
+                    {/* يمين الصفحة: رئيس اللجنة */}
+                    <div className="text-center w-1/3 flex flex-col items-center justify-end">
+                        <p className="font-bold mb-4 text-sm">رئيس لجنة شؤون الطلبة</p>
+                        {assets.committeeSig ? (
+                            <img src={assets.committeeSig} className="h-20 object-contain" />
+                        ) : (
+                            <div className="h-20 w-full flex items-end justify-center pb-2">...................</div>
+                        )}
                     </div>
-                )}
 
-                {/* Principal */}
-                <div className="text-center w-1/3 z-10">
-                    <p className="font-bold mb-4 text-sm">مدير المدرسة</p>
-                    {assets.principalSig ? (
-                        <img src={assets.principalSig} className="h-20 mx-auto object-contain" />
-                    ) : (
-                        <div className="mt-10 border-b border-black w-2/3 mx-auto"></div>
-                    )}
+                    {/* وسط الصفحة: الختم */}
+                    <div className="flex-1 flex justify-center items-center pb-2">
+                        {assets.schoolStamp ? (
+                            <img src={assets.schoolStamp} alt="Stamp" className="h-32 w-32 object-contain opacity-90 transform rotate-[-5deg]" />
+                        ) : (
+                            <div className="h-24 w-24 border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-400 rounded-full">الختم المدرسي</div>
+                        )}
+                    </div>
+
+                    {/* يسار الصفحة: مدير المدرسة */}
+                    <div className="text-center w-1/3 flex flex-col items-center justify-end">
+                        <p className="font-bold mb-4 text-sm">مدير المدرسة</p>
+                        {assets.principalSig ? (
+                            <img src={assets.principalSig} className="h-20 object-contain" />
+                        ) : (
+                            <div className="h-20 w-full flex items-end justify-center pb-2">...................</div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

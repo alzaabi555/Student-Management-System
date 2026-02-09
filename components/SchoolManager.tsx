@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Layers, Plus, Trash2, Folder, GraduationCap, AlertCircle, Database, Download, Upload, RefreshCw, AlertTriangle, Image as ImageIcon, Check, UserCircle } from 'lucide-react';
-import { grades, classes, addGrade, deleteGrade, addClass, deleteClass, exportDatabase, importDatabase, resetDatabase, getSchoolAssets, saveSchoolAssets } from '../services/dataService';
+import { Layers, Plus, Trash2, Folder, GraduationCap, AlertCircle, Database, Download, Upload, RefreshCw, AlertTriangle, Image as ImageIcon, Check, UserCircle, Stamp, PenTool } from 'lucide-react';
+import { grades, classes, addGrade, deleteGrade, addClass, deleteClass, exportDatabase, importDatabase, resetDatabase, getSchoolAssets, saveSchoolAssets, SchoolAssets } from '../services/dataService';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
@@ -16,17 +16,13 @@ const SchoolManager: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Logo & Supervisor Image State
-  const [logo, setLogo] = useState<string | null>(null);
-  const [supervisorImg, setSupervisorImg] = useState<string | null>(null);
+  // Assets State
+  const [assets, setAssets] = useState<SchoolAssets>({});
 
   useEffect(() => {
       const loadAssets = async () => {
-          const assets = await getSchoolAssets();
-          if (assets) {
-              if (assets.headerLogo) setLogo(assets.headerLogo);
-              if (assets.supervisorImage) setSupervisorImg(assets.supervisorImage);
-          }
+          const loadedAssets = await getSchoolAssets();
+          setAssets(loadedAssets || {});
       };
       loadAssets();
   }, []);
@@ -63,42 +59,24 @@ const SchoolManager: React.FC = () => {
   };
 
   // --- Image Handling ---
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'supervisor') => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, key: keyof SchoolAssets) => {
     if (e.target.files && e.target.files[0]) {
         const file = e.target.files[0];
         const reader = new FileReader();
         reader.onloadend = async () => {
             const base64 = reader.result as string;
-            const currentAssets = await getSchoolAssets();
-            const newAssets = { ...currentAssets };
-            
-            if (type === 'logo') {
-                newAssets.headerLogo = base64;
-                setLogo(base64);
-            } else {
-                newAssets.supervisorImage = base64;
-                setSupervisorImg(base64);
-            }
-            
+            const newAssets = { ...assets, [key]: base64 };
+            setAssets(newAssets);
             await saveSchoolAssets(newAssets);
         };
         reader.readAsDataURL(file);
     }
   };
 
-  const handleDeleteImage = async (type: 'logo' | 'supervisor') => {
+  const handleDeleteImage = async (key: keyof SchoolAssets) => {
       if(window.confirm('هل أنت متأكد من الحذف؟')) {
-        const currentAssets = await getSchoolAssets();
-        const newAssets = { ...currentAssets };
-        
-        if (type === 'logo') {
-            newAssets.headerLogo = undefined;
-            setLogo(null);
-        } else {
-            newAssets.supervisorImage = undefined;
-            setSupervisorImg(null);
-        }
-        
+        const newAssets = { ...assets, [key]: undefined };
+        setAssets(newAssets);
         await saveSchoolAssets(newAssets);
       }
   };
@@ -112,8 +90,6 @@ const SchoolManager: React.FC = () => {
           const fileName = `Madrasati_Backup_${date}.json`;
 
           if (Capacitor.isNativePlatform()) {
-              // --- استراتيجية الأندرويد/الموبايل ---
-              // 1. كتابة الملف في مجلد الكاش
               await Filesystem.writeFile({
                   path: fileName,
                   data: json,
@@ -121,13 +97,11 @@ const SchoolManager: React.FC = () => {
                   encoding: Encoding.UTF8
               });
 
-              // 2. الحصول على مسار الملف
               const uriResult = await Filesystem.getUri({
                   directory: Directory.Cache,
                   path: fileName
               });
 
-              // 3. مشاركة الملف (تسمح بالحفظ في Drive، الواتساب، أو الملفات)
               await Share.share({
                   title: 'نسخة احتياطية - مدرستي',
                   text: `نسخة احتياطية لقاعدة بيانات النظام بتاريخ ${date}`,
@@ -135,7 +109,6 @@ const SchoolManager: React.FC = () => {
                   dialogTitle: 'حفظ النسخة الاحتياطية'
               });
           } else {
-              // --- استراتيجية الكمبيوتر/الويب ---
               const blob = new Blob([json], { type: 'application/json' });
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
@@ -196,6 +169,14 @@ const SchoolManager: React.FC = () => {
   const currentClasses = classes.filter(c => c.gradeId === selectedGradeId);
   const selectedGradeName = grades.find(g => g.id === selectedGradeId)?.name;
 
+  // تعريف البطاقات الخاصة بالصور
+  const assetCards = [
+      { key: 'headerLogo', label: 'شعار الوزارة / المدرسة', icon: <ImageIcon size={24} />, color: 'purple' },
+      { key: 'schoolStamp', label: 'الختم المدرسي', icon: <Stamp size={24} />, color: 'blue' },
+      { key: 'principalSig', label: 'توقيع مدير المدرسة', icon: <PenTool size={24} />, color: 'emerald' },
+      { key: 'supervisorImage', label: 'صورة مشرف السجل', icon: <UserCircle size={24} />, color: 'amber' },
+  ];
+
   return (
     <div className="flex flex-col max-w-5xl mx-auto space-y-6 pb-20">
       
@@ -205,84 +186,49 @@ const SchoolManager: React.FC = () => {
         <p className="text-gray-500">إدارة الهيكل المدرسي، هوية المدرسة، والبيانات</p>
       </div>
 
-      {/* --- School Branding & Supervisor Section --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
-          {/* Logo Card */}
-          <div className="card p-6 border-l-4 border-l-purple-500">
-            <div className="flex items-start justify-between">
-                <div>
-                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                        <ImageIcon className="text-purple-600" size={20} />
-                        شعار المدرسة
-                    </h3>
+      {/* --- School Branding & Assets Section --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+          {assetCards.map((card) => {
+              const hasAsset = !!assets[card.key as keyof SchoolAssets];
+              return (
+                <div key={card.key} className={`card p-5 border-l-4 border-l-${card.color}-500`}>
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span className={`text-${card.color}-600`}>{card.icon}</span>
+                                {card.label}
+                            </h3>
+                        </div>
+                        {hasAsset && <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full"><Check size={12}/> مفعل</span>}
+                    </div>
+                    <div className="mt-6 flex items-center gap-6">
+                        <div className="relative w-24 h-24 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden group">
+                            {hasAsset ? (
+                                <img src={assets[card.key as keyof SchoolAssets]} alt={card.label} className="w-full h-full object-contain p-1" />
+                            ) : (
+                                React.cloneElement(card.icon as React.ReactElement, { className: "text-gray-300", size: 32 })
+                            )}
+                            <input 
+                                type="file" accept="image/*" onChange={(e) => handleImageUpload(e, card.key as keyof SchoolAssets)}
+                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                title={`تغيير ${card.label}`}
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <button className="btn btn-secondary text-xs relative overflow-hidden">
+                                <Upload size={14} /> <span>رفع صورة</span>
+                                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, card.key as keyof SchoolAssets)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                            </button>
+                            {hasAsset && (
+                                <button onClick={() => handleDeleteImage(card.key as keyof SchoolAssets)} className="btn bg-white border border-red-200 text-red-600 hover:bg-red-50 text-xs">
+                                    <Trash2 size={14} /> <span>حذف</span>
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 </div>
-                {logo && <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full"><Check size={12}/> مفعل</span>}
-            </div>
-            <div className="mt-6 flex items-center gap-6">
-                <div className="relative w-24 h-24 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden group">
-                    {logo ? (
-                        <img src={logo} alt="School Logo" className="w-full h-full object-contain p-2" />
-                    ) : (
-                        <ImageIcon className="text-gray-300" size={32} />
-                    )}
-                    <input 
-                        type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'logo')}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                        title="تغيير الشعار"
-                    />
-                </div>
-                <div className="flex flex-col gap-2">
-                    <button className="btn btn-secondary text-xs relative overflow-hidden">
-                        <Upload size={14} /> <span>رفع</span>
-                        <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'logo')} className="absolute inset-0 opacity-0 cursor-pointer" />
-                    </button>
-                    {logo && (
-                        <button onClick={() => handleDeleteImage('logo')} className="btn bg-white border border-red-200 text-red-600 hover:bg-red-50 text-xs">
-                            <Trash2 size={14} /> <span>حذف</span>
-                        </button>
-                    )}
-                </div>
-            </div>
-          </div>
-
-          {/* Supervisor Card */}
-          <div className="card p-6 border-l-4 border-l-amber-500">
-            <div className="flex items-start justify-between">
-                <div>
-                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                        <UserCircle className="text-amber-600" size={20} />
-                        مشرف السجل
-                    </h3>
-                </div>
-                {supervisorImg && <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full"><Check size={12}/> مفعل</span>}
-            </div>
-            <div className="mt-6 flex items-center gap-6">
-                <div className="relative w-24 h-24 bg-gray-50 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden group">
-                    {supervisorImg ? (
-                        <img src={supervisorImg} alt="Supervisor" className="w-full h-full object-cover" />
-                    ) : (
-                        <UserCircle className="text-gray-300" size={32} />
-                    )}
-                    <input 
-                        type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'supervisor')}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                        title="تغيير الصورة"
-                    />
-                </div>
-                <div className="flex flex-col gap-2">
-                    <button className="btn btn-secondary text-xs relative overflow-hidden">
-                        <Upload size={14} /> <span>رفع صورة</span>
-                        <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'supervisor')} className="absolute inset-0 opacity-0 cursor-pointer" />
-                    </button>
-                    {supervisorImg && (
-                        <button onClick={() => handleDeleteImage('supervisor')} className="btn bg-white border border-red-200 text-red-600 hover:bg-red-50 text-xs">
-                            <Trash2 size={14} /> <span>حذف</span>
-                        </button>
-                    )}
-                </div>
-            </div>
-          </div>
+              );
+          })}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[500px]">
