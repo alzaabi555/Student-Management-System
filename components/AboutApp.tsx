@@ -76,7 +76,7 @@ const AboutApp: React.FC = () => {
                     <Info size={32} strokeWidth={2.5} />
                 </div>
                 <h2 className="text-2xl font-extrabold text-slate-900 mb-1 tracking-tight">نظام مدرستي</h2>
-                <p className="text-sm text-slate-500 font-medium dir-ltr">Version 2.0.0</p>
+                <p className="text-sm text-slate-500 font-medium dir-ltr">Version 2.1.0</p>
             </div>
 
             {/* نبذة عن التطبيق */}

@@ -1,16 +1,17 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { UserMinus, Send, CheckCircle2, Phone, Calendar, AlertTriangle, DoorOpen, Printer } from 'lucide-react';
+import { UserMinus, Send, CheckCircle2, Phone, Calendar, AlertTriangle, DoorOpen, Printer, ChevronRight, ChevronLeft, History, Filter } from 'lucide-react';
 import { students, grades, classes, getAttendanceRecord, getSchoolSettings } from '../services/dataService';
 import { AttendanceStatus } from '../types';
 import { TableVirtuoso } from 'react-virtuoso';
 import { printDailyAbsenceReport } from '../services/printService';
 
 const DailyAbsence: React.FC = () => {
-    const today = new Date().toISOString().split('T')[0];
-    const displayDate = new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    // الحالة الافتراضية هي تاريخ اليوم
+    const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    
     const [schoolName, setSchoolName] = useState('مدرستي');
-    const [sentList, setSentList] = useState<string[]>([]); // To track sent messages in current session
+    const [sentList, setSentList] = useState<string[]>([]); // تتبع الرسائل المرسلة في الجلسة الحالية
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -20,11 +21,25 @@ const DailyAbsence: React.FC = () => {
         fetchSettings();
     }, []);
 
-    // تجميع بيانات الغائبين فقط لهذا اليوم
+    // تغيير التاريخ لليوم السابق/التالي
+    const changeDate = (days: number) => {
+        const date = new Date(selectedDate);
+        date.setDate(date.getDate() + days);
+        setSelectedDate(date.toISOString().split('T')[0]);
+        setSentList([]); // تصفية قائمة الإرسال عند تغيير اليوم
+    };
+
+    const displayDate = new Date(selectedDate).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    
+    // التحقق مما إذا كان التاريخ المختار هو اليوم
+    const isToday = selectedDate === new Date().toISOString().split('T')[0];
+
+    // تجميع بيانات الغائبين للتاريخ المختار
     const absentStudents = useMemo(() => {
         const list: any[] = [];
         students.forEach(student => {
-            const record = getAttendanceRecord(today, student.id);
+            const record = getAttendanceRecord(selectedDate, student.id);
+            // جلب أي طالب حالته ليست "حاضر" (غائب، تسرب، هروب)
             if (record && record.status !== AttendanceStatus.PRESENT) {
                 const grade = grades.find(g => g.id === student.gradeId);
                 const cls = classes.find(c => c.id === student.classId);
@@ -38,14 +53,14 @@ const DailyAbsence: React.FC = () => {
             }
         });
         return list;
-    }, [today, students, grades, classes]);
+    }, [selectedDate, students, grades, classes]);
 
     const handlePrint = () => {
         if (absentStudents.length === 0) {
-            alert("لا يوجد غياب للطباعة");
+            alert("لا يوجد غياب للطباعة في هذا التاريخ");
             return;
         }
-        printDailyAbsenceReport(schoolName, today, absentStudents);
+        printDailyAbsenceReport(schoolName, selectedDate, absentStudents);
     };
 
     const sendWhatsApp = async (student: any) => {
@@ -57,7 +72,7 @@ const DailyAbsence: React.FC = () => {
         const statusText = student.status === AttendanceStatus.ABSENT ? 'الغياب' : 
                            student.status === AttendanceStatus.TRUANT ? 'التسرب من الحصة' : 'التسرب من المدرسة';
 
-        const message = `عاجل: نفيدكم بـ ${statusText} للطالب/ة (${student.name}) المقيد بالصف (${student.gradeName} / ${student.className}) عن المدرسة اليوم ${today}. برجاء ارسال نسخة من الاجازة المرضية او موعد الطبي. إدارة ${schoolName}.`;
+        const message = `عاجل: نفيدكم بـ ${statusText} للطالب/ة (${student.name}) المقيد بالصف (${student.gradeName} / ${student.className}) عن المدرسة بتاريخ ${selectedDate}. برجاء ارسال نسخة من الاجازة المرضية او موعد الطبي. إدارة ${schoolName}.`;
 
         const url = `whatsapp://send?phone=968${student.parentPhone}&text=${encodeURIComponent(message)}`;
         
@@ -67,7 +82,7 @@ const DailyAbsence: React.FC = () => {
             window.open(url, '_blank');
         }
 
-        // إضافة الطالب لقائمة "تم الإرسال" محلياً
+        // إضافة الطالب لقائمة "تم الإرسال" محلياً لتغيير لون الزر
         if (!sentList.includes(student.id)) {
             setSentList(prev => [...prev, student.id]);
         }
@@ -75,38 +90,86 @@ const DailyAbsence: React.FC = () => {
 
     return (
         <div className="flex flex-col h-full space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            {/* الشريط العلوي للتحكم */}
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                        <UserMinus className="text-rose-600" size={28} />
-                        سجل غياب اليوم
+                        {isToday ? <UserMinus className="text-rose-600" size={28} /> : <History className="text-slate-500" size={28} />}
+                        {isToday ? 'سجل غياب اليوم' : 'أرشيف السجلات اليومية'}
                     </h2>
-                    <p className="text-gray-500 text-sm mt-1 flex items-center gap-2">
-                        <Calendar size={14} />
-                        {displayDate}
+                    <p className="text-gray-500 text-sm mt-1">
+                        {isToday ? 'متابعة الحالات المسجلة لهذا اليوم' : 'مراجعة وطباعة سجلات الأيام السابقة'}
                     </p>
                 </div>
-                <div className="flex gap-3">
+
+                {/* Date Controls - أدوات التحكم بالتاريخ */}
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto bg-slate-50 p-2 rounded-lg border border-slate-100">
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
+                        <button 
+                            onClick={() => changeDate(-1)} 
+                            className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-600 active:scale-95" 
+                            title="اليوم السابق"
+                        >
+                            <ChevronRight size={20} />
+                        </button>
+                        
+                        <div className="relative group">
+                            <div className="absolute right-3 top-2.5 text-slate-400 pointer-events-none">
+                                <Calendar size={16} />
+                            </div>
+                            <input 
+                                type="date" 
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                                className="form-input py-1.5 pr-9 pl-3 text-sm w-40 text-center font-bold border-slate-200 shadow-none focus:ring-0 cursor-pointer"
+                            />
+                        </div>
+
+                        <button 
+                            onClick={() => changeDate(1)} 
+                            disabled={isToday} 
+                            className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-600 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:shadow-none active:scale-95" 
+                            title="اليوم التالي"
+                        >
+                            <ChevronLeft size={20} />
+                        </button>
+                    </div>
+                    
+                    <div className="hidden sm:block w-px h-8 bg-slate-200 mx-1"></div>
+
+                    <div className="text-sm font-bold text-slate-700 w-full sm:w-auto text-center min-w-[180px]">
+                        {displayDate}
+                    </div>
+                </div>
+
+                {/* Print Button */}
+                <div className="flex gap-3 w-full xl:w-auto">
                     <button 
                         onClick={handlePrint}
                         disabled={absentStudents.length === 0}
-                        className="btn bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm"
+                        className="btn bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm flex-1 xl:flex-none justify-center"
                     >
                         <Printer size={18} />
-                        <span className="hidden md:inline">طباعة / مشاركة PDF</span>
+                        <span className="hidden sm:inline">طباعة التقرير</span>
+                        <span className="sm:hidden">طباعة</span>
                     </button>
-                    <div className="bg-blue-50 text-blue-800 px-4 py-2 rounded-lg text-sm font-bold border border-blue-100 shadow-sm flex items-center">
-                        عدد الغائبين: {absentStudents.length}
+                    <div className={`px-4 py-2 rounded-lg text-sm font-bold border shadow-sm flex items-center justify-center min-w-[120px] ${absentStudents.length > 0 ? 'bg-rose-50 text-rose-800 border-rose-100' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>
+                        {absentStudents.length > 0 ? `${absentStudents.length} حالة` : 'لا يوجد'}
                     </div>
                 </div>
             </div>
 
-            <div className="card flex-1 overflow-hidden flex flex-col">
+            {/* الجدول */}
+            <div className="card flex-1 overflow-hidden flex flex-col relative">
+                {!isToday && (
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-yellow-400 z-10 opacity-50"></div>
+                )}
+                
                 {absentStudents.length === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
                         <CheckCircle2 size={48} className="text-emerald-500 mb-2 opacity-50" />
-                        <p className="text-lg font-bold">رائع! لا يوجد غياب مسجل اليوم</p>
-                        <p className="text-sm opacity-70">أو لم يتم رصد الغياب بعد</p>
+                        <p className="text-lg font-bold">سجل نظيف لهذا التاريخ</p>
+                        <p className="text-sm opacity-70">لا توجد حالات غياب أو تسرب مسجلة في {selectedDate}</p>
                     </div>
                 ) : (
                     <TableVirtuoso
@@ -169,26 +232,17 @@ const DailyAbsence: React.FC = () => {
                 )}
             </div>
             
-            {absentStudents.length > 0 && (
-                <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl text-sm text-yellow-800 flex items-start gap-3">
-                    <InfoIcon />
+            {/* رسالة تنبيه عند استعراض الأرشيف */}
+            {!isToday && (
+                <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl text-sm text-amber-800 flex items-center gap-3 animate-fadeIn">
+                    <Filter className="text-amber-600" size={20} />
                     <div>
-                        <p className="font-bold">ملاحظة بخصوص الإرسال الجماعي:</p>
-                        <p className="text-xs mt-1 opacity-90">
-                            قم بالنقر على زر "إرسال واتساب" لكل طالب بالتتابع. سيتم فتح التطبيق مباشرة.
-                            عند العودة، سيتحول الزر إلى "تم الإرسال" لمساعدتك في متابعة من تم تبليغهم.
-                            <br/>
-                            تم تحديث الرسالة لتشمل: اسم الطالب، الصف والشعبة، وطلب العذر الطبي.
-                        </p>
+                        <span className="font-bold">وضع الأرشيف:</span> أنت تشاهد بيانات يوم سابق ({selectedDate}). البيانات المعروضة للقراءة والطباعة فقط.
                     </div>
                 </div>
             )}
         </div>
     );
 };
-
-const InfoIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-);
 
 export default DailyAbsence;

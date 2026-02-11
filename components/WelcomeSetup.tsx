@@ -108,7 +108,7 @@ const WelcomeSetup: React.FC<WelcomeSetupProps> = ({ onComplete }) => {
         
         {/* Footer */}
         <div className="bg-gray-50 p-4 text-center border-t border-gray-100 flex justify-between items-center px-8 text-xs text-gray-400 font-mono">
-            <span>Ver 2.0.0</span>
+            <span>Ver 2.1.0</span>
             <span>Madrasati Systems © 2024</span>
         </div>
       </div>
