@@ -1,4 +1,3 @@
-
 import { AttendanceStatus, AttendanceRecord, Student } from '../types';
 import { StudentPeriodStats, SchoolAssets } from './dataService';
 import { Share } from '@capacitor/share';
@@ -30,7 +29,7 @@ const executeOutputStrategy = async (contentHTML: string, fileName: string) => {
 
 /**
  * استراتيجية الموبايل: توليد PDF ومشاركته
- * يقوم بتحويل HTML إلى صورة طويلة ثم تقسيمها إلى صفحات PDF
+ * تم تعديلها لتصوير كل صفحة على حدة لمنع قص الجدول من المنتصف
  */
 const generateAndSharePDF = async (contentHTML: string, fileName: string) => {
     // إنشاء حاوية مخفية لرسم التقرير
@@ -49,38 +48,31 @@ const generateAndSharePDF = async (contentHTML: string, fileName: string) => {
         // انتظار بسيط لتحميل الصور والخطوط
         await new Promise(resolve => setTimeout(resolve, 800));
 
-        // نلتقط الصورة للطول الكامل (الذي قد يحتوي على عدة صفحات)
-        const canvas = await html2canvas(container.querySelector('.report-container') as HTMLElement, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            width: A4_WIDTH_PX,
-            windowWidth: A4_WIDTH_PX,
-            backgroundColor: '#ffffff'
-        });
-
-        const imgData = canvas.toDataURL('image/jpeg', 0.9);
+        const pages = container.querySelectorAll('.print-page');
         const pdf = new jsPDF('p', 'mm', 'a4');
-        
-        const imgWidth = A4_WIDTH_MM;
-        const pageHeight = A4_HEIGHT_MM;
-        
-        // حساب الارتفاع الكلي للصورة الناتجة
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        
-        let heightLeft = imgHeight;
-        let position = 0;
 
-        // الصفحة الأولى
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        // المرور على كل صفحة وتصويرها بشكل مستقل لضمان دقة الطباعة
+        for (let i = 0; i < pages.length; i++) {
+            const pageEl = pages[i] as HTMLElement;
+            const canvas = await html2canvas(pageEl, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                width: pageEl.offsetWidth,
+                height: pageEl.offsetHeight,
+                backgroundColor: '#ffffff'
+            });
 
-        // إضافة الصفحات التالية (إذا كان التقرير طويلاً)
-        while (heightLeft > 0) {
-            position -= pageHeight; // سحب الصورة للأعلى
-            pdf.addPage();
-            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
+            const imgData = canvas.toDataURL('image/jpeg', 0.9);
+            
+            if (i > 0) {
+                pdf.addPage();
+            }
+
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
         }
 
         const base64Data = pdf.output('datauristring').split(',')[1];
@@ -167,15 +159,16 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
                 color: black;
             }
 
-            /* تصميم الصفحة */
+            /* تصميم الصفحة (تم تعديله لمنع الانضغاط) */
             .print-page {
                 width: 210mm;
-                min-height: 297mm;
-                padding: 15mm 15mm; /* هوامش مريحة */
+                height: 297mm; /* ارتفاع ثابت لورقة A4 */
+                padding: 15mm; 
                 position: relative;
-                display: flex;
-                flex-direction: column;
+                display: block; /* إزالة flexbox لمنع ضغط الجدول */
                 page-break-after: always;
+                page-break-inside: avoid;
+                overflow: hidden;
             }
             .print-page:last-child {
                 page-break-after: auto;
@@ -210,29 +203,34 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
                 margin-top: 20px; 
                 font-size: 15px; 
                 border: 1px solid #000;
+                table-layout: fixed; /* يمنع تمدد الجدول بشكل عشوائي */
+            }
+            
+            /* منع انقسام الصفوف في الطباعة المباشرة */
+            tr {
+                page-break-inside: avoid;
             }
             
             /* رأس الجدول */
             th { 
-                background-color: #ffe4e6 !important; /* لون خلفية خفيف ومميز للرأس */
+                background-color: #ffe4e6 !important; 
                 color: #000; 
                 font-weight: 800; 
                 padding: 12px 10px; 
                 border: 1px solid #000; 
                 text-align: center;
-                height: 45px; /* ارتفاع جيد للرأس */
+                height: 45px; 
             }
 
             /* خلايا الجدول */
             td { 
                 border: 1px solid #000; 
-                padding: 6px 10px; /* هامش داخلي مريح */
+                padding: 6px 10px; 
                 text-align: center; 
-                height: 38px; /* ارتفاع ثابت للصف لمنع التكدس */
+                height: 38px; 
                 vertical-align: middle;
             }
 
-            /* تلوين الصفوف الفردية والزوجية لسهولة القراءة */
             tr:nth-child(even) {
                 background-color: #fafafa;
             }
@@ -247,13 +245,15 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
 
             .status-text { font-weight: bold; }
             
-            /* التذييل والتواقيع */
+            /* التذييل والتواقيع (تم تثبيته في أسفل الصفحة) */
             .footer-sig { 
-                margin-top: auto; 
-                padding-top: 30px;
+                position: absolute;
+                bottom: 25mm;
+                left: 15mm;
+                right: 15mm;
+                padding-top: 20px;
                 display: flex; 
                 justify-content: space-between; 
-                margin-bottom: 30px;
             }
             .footer-sig div { 
                 text-align: center; 
@@ -280,7 +280,7 @@ const getReportHTMLStructure = (bodyContent: string, isWebPrint: boolean = false
 
             @media print {
                 .report-container { width: 100%; }
-                .print-page { height: auto; min-height: 297mm; }
+                .print-page { height: 297mm !important; max-height: 297mm; overflow: hidden; }
                 th { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact; }
                 tr:nth-child(even) { background-color: #f9fafb !important; -webkit-print-color-adjust: exact; }
             }
@@ -616,9 +616,7 @@ export const printSummonLetter = (
         <div class="print-page" style="border: none;">
             <div style="border: 4px double #000; padding: 40px; height: 100%; box-sizing: border-box; position: relative;">
                 
-                <!-- New Header Layout using Flexbox -->
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 20px;">
-                    <!-- Right: Text (RTL) -->
                     <div style="text-align: right; width: 40%;">
                         <div style="font-size: 20px; font-weight: bold; margin-bottom: 5px;">سلطنة عُمان</div>
                         <div style="font-size: 20px; font-weight: bold; margin-bottom: 5px;">وزارة التربية والتعليم</div>
@@ -626,12 +624,10 @@ export const printSummonLetter = (
                         <div style="font-size: 16px; font-weight: bold;">مدرسة ${schoolName}</div>
                     </div>
                     
-                    <!-- Center: Logo -->
                     <div style="flex: 1; display: flex; justify-content: center; align-items: center;">
                         ${headerLogoHtml}
                     </div>
 
-                    <!-- Left: Empty for balance -->
                     <div style="width: 30%;"></div>
                 </div>
 
@@ -653,14 +649,12 @@ export const printSummonLetter = (
                     <p style="margin-top: 30px; font-weight: bold; text-align: center;">شاكرين لكم حسن تعاونكم وتجاوبكم معنا لتحقيق مصلحة الطالب</p>
                 </div>
                 
-                <!-- Footer Signatures -->
                 <div style="margin-top: 60px; padding: 0 20px; display: flex; justify-content: space-between; align-items: flex-end;">
                     <div style="text-align: center; width: 220px;">
                         <p style="font-weight: bold; margin-bottom: 15px; font-size: 18px;">رئيس لجنة شؤون الطلبة</p>
                         ${committeeSigHtml}
                     </div>
                     
-                    <!-- Center: Stamp -->
                     <div style="flex: 1; display: flex; justify-content: center; align-items: center; padding-bottom: 10px;">
                         ${stampHtml}
                     </div>
